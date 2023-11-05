@@ -1,0 +1,15 @@
+.error-ctr {
+  display: flex;
+  flex-direction: column;
+
+  & .logo {
+    width: 4rem;
+    margin-bottom: 1rem;
+  }
+
+  &.fatal {
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+  }
+}

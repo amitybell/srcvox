@@ -1,0 +1,44 @@
+{
+  "name": "SrcVox",
+  "reloaddirs": "frontend",
+  "frontend:build": "npm run build",
+  "frontend:install": "npm install",
+  "frontend:dev": "",
+  "frontend:dev:build": "",
+  "frontend:dev:install": "",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "wailsjsdir": "frontend",
+  "version": "2",
+  "build:dir": "build",
+  "outputfilename": "srcvox",
+  "OutputType": "",
+  "Platform": "",
+  "runNonNativeBuildHooks": false,
+  "postBuildHooks": null,
+  "preBuildHooks": null,
+  "Author": {
+    "name": "",
+    "email": ""
+  },
+  "Info": {
+    "companyName": "Amity Bell",
+    "productName": "SrcVox",
+    "productVersion": "0.0.0",
+    "copyright": "©2023 Amity Bell",
+    "comments": "Companion app for Valve Source Engine based games."
+  },
+  "debounceMS": 100,
+  "devServer": "localhost:34115",
+  "appargs": "",
+  "nsisType": "multiple",
+  "obfuscated": false,
+  "garbleargs": "",
+  "frontend:dir": "frontend",
+  "bindings": {
+    "ts_generation": {
+      "prefix": "",
+      "suffix": ""
+    }
+  }
+}

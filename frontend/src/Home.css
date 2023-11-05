@@ -1,0 +1,42 @@
+.home-ctr {
+}
+
+.game-ctr {
+  display: inline-flex;
+  align-items: center;
+
+  & .game-icon {
+    width: 2rem;
+    height: auto;
+  }
+  & .game-title {
+    margin-left: 1rem;
+  }
+}
+
+.games-ctr {
+  & summary {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+
+    &::marker,
+    &::-webkit-details-marker {
+      display: none;
+    }
+  }
+  & ul {
+    list-style: none;
+    position: absolute;
+  }
+  & li {
+    padding: 10px;
+    margin: 5px;
+  }
+  & li:hover {
+    /*    background: rgba(255, 255, 0, 0.5);*/
+  }
+}
+
+.game-icon {
+}

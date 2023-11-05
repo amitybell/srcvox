@@ -1,0 +1,12 @@
+.loading-ctr {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  & .logo {
+    width: 4rem;
+    margin-bottom: 1rem;
+  }
+}

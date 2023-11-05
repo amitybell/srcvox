@@ -1,0 +1,64 @@
+:root {
+  --color: #fefefe;
+  --background: #181818;
+  --button-color: var(--color);
+  --button-background: #343434;
+  --input-color: #111111;
+  --input-background: #fefefe;
+  --tab-bg: var(--button-background);
+  --tab-bg-active: #565656;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  height: 100vh;
+
+  background-color: var(--background);
+  &,
+  & a {
+    color: var(--color);
+    font-family: system-ui, sans-serif;
+  }
+}
+
+body {
+  overflow: auto;
+}
+
+#root {
+  padding: 1rem;
+  min-height: 100%;
+}
+
+button {
+  cursor: pointer;
+  color: var(--button-color);
+  background-color: var(--button-background);
+  display: inline-flex;
+  align-items: center;
+}
+
+input {
+  color: var(--input-color);
+  background-color: var(--input-background);
+}
+
+input,
+button {
+  border: none;
+  padding: 0.5em 1em;
+  border-radius: 0.5em;
+  &:not(:first-child) {
+    margin-left: 0.5rem;
+  }
+  font-size: inherit;
+}
+
+#App,
+body {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}

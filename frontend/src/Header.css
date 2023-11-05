@@ -1,0 +1,17 @@
+.header-ctr {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2rem;
+  justify-content: center;
+
+  & .logo-ctr {
+    width: 4rem;
+    display: inline-flex;
+  }
+
+  & .tabs-ctr {
+    flex: 1;
+    align-items: center;
+    margin-left: 1rem;
+  }
+}

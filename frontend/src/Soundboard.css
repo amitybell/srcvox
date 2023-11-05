@@ -1,0 +1,59 @@
+.soundboard-message-ctr {
+  width: 100%;
+  display: flex;
+  margin-bottom: 2rem;
+
+  & > input {
+    flex: 1;
+  }
+
+  & .play-btn {
+    width: auto;
+  }
+}
+
+.soundboard-ctr {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.sound-ctr {
+  margin: 0.5rem;
+  flex-direction: row;
+  align-items: center;
+  cursor: pointer;
+  border-radius: 0.5rem;
+}
+
+.sound-title-ctr {
+  display: inline-flex;
+  padding: 0.25rem;
+  white-space: nowrap;
+}
+
+.play-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem;
+
+  & .sound-title-ctr {
+    width: 7rem;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    min-width: 0; /* flex overflow hack */
+    margin-right: 0.5rem;
+  }
+
+  & .play-icon-ctr {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5em;
+
+    & svg {
+      width: 100%;
+      height: auto;
+    }
+  }
+}

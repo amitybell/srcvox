@@ -1,0 +1,19 @@
+.presence-ctr {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+
+  & > :not(:first-child) {
+    margin-left: 0.5em;
+  }
+
+  & .presence-icon {
+    width: 1.5em;
+    height: auto;
+  }
+  & .presence-clan {
+    opacity: 0.75;
+  }
+  & .presence-name {
+  }
+}

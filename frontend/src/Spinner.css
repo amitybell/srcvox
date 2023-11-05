@@ -1,0 +1,24 @@
+@keyframes spinner {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner-ctr {
+  width: 100%;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spinner {
+  max-width: 4rem;
+  width: 100%;
+  height: auto;
+  display: inline-block;
+  animation: spinner 1s linear infinite;
+}
