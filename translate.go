@@ -21,6 +21,7 @@ var (
 		"glhf": {"good luck, have fun!"},
 		"ns":   {"nice", "nice shot", "noice"},
 		"ko":   {"KO", "knock out"},
+		"wb":   {"welcome back"},
 	}
 
 	Substites = map[string][]string{
@@ -55,6 +56,7 @@ func Translate(name, text string) string {
 		v, _ := Translations[k]
 		switch len(v) {
 		case 0:
+			out[i] = k
 		case 1:
 			out[i] = v[0]
 		default:

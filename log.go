@@ -3,12 +3,15 @@ package main
 import (
 	"log"
 	"os"
-	"path/filepath"
 )
 
-type logWriter struct{ F *os.File }
+var (
+	Logs = log.New(os.Stderr, "srcvox: ", log.Lshortfile|log.Ltime)
+)
 
-func (w *logWriter) Write(p []byte) (int, error) {
+type LogWriter struct{ F *os.File }
+
+func (w *LogWriter) Write(p []byte) (int, error) {
 	if w.F != nil {
 		// it's a best-effort attempt, it doesn't matter if it fails
 		w.F.Write(p)
@@ -18,12 +21,14 @@ func (w *logWriter) Write(p []byte) (int, error) {
 	return os.Stderr.Write(p)
 }
 
-var Logs, logsFile = func() (*log.Logger, *os.File) {
-	fn := filepath.Join(DataDir, "logs.txt")
-	f, err := os.OpenFile(fn, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		log.Printf("Cannot open %s: %s", fn, err)
+func (w *LogWriter) Close() error {
+	if w.F != nil {
+		return w.F.Close()
 	}
-	l := log.New(&logWriter{F: f}, "srcvox: ", log.Lshortfile|log.Ltime)
-	return l, f
-}()
+	return nil
+}
+
+func NewLogWriter(fn string) *LogWriter {
+	f, _ := os.OpenFile(fn, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+	return &LogWriter{F: f}
+}

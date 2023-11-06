@@ -1,13 +1,8 @@
 import './Presence.css'
-import { useAppEvent } from './api'
 import { usePresence } from './hooks/query'
 
 function Body() {
   const pr = usePresence()
-  useAppEvent('sv.PresenceChange', () => {
-    pr.refetch()
-  })
-
   if (pr.type !== 'ok') {
     return pr.alt
   }

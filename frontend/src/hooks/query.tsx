@@ -15,8 +15,9 @@ import {
   Presence,
   coerce,
   Environment,
+  ServerInfo,
 } from '../appstate'
-import { app } from '../api'
+import { app, useAppEvent } from '../api'
 import Spinner from '../Spinner'
 
 export type QResult<T> =
@@ -138,13 +139,32 @@ export function useAppState(): QResult<AppState> {
 }
 
 export function useAppError(): QResult<AppError> {
-  return useData('app.Error', app.Error, (p) => new AppError(p))
+  const err = useData('app.Error', app.Error, (p) => new AppError(p))
+  useAppEvent('sv.ErrorChange', () => {
+    err.refetch()
+  })
+  return err
 }
 
 export function usePresence(): QResult<Presence> {
-  return useData('app.Presence', app.Presence, (p) => new Presence(p))
+  const pr = useData('app.Presence', app.Presence, (p) => new Presence(p))
+  useAppEvent('sv.PresenceChange', () => {
+    pr.refetch()
+  })
+  return pr
 }
 
 export function useEnv(): QResult<Environment> {
   return useData('app.Env', app.Env, (p) => new Environment(p))
+}
+
+export function useServerInfos(gameID: number, refresh: number): QResult<ServerInfo[]> {
+  return useData(
+    'app.ServerInfos',
+    () => app.ServerInfos(gameID),
+    (p) => coerce([], p).map((q) => new ServerInfo(q)),
+    {
+      refetchInterval: refresh > 0 ? refresh : false,
+    },
+  )
 }

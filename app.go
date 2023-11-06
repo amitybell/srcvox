@@ -36,7 +36,9 @@ func AppErr(pfx string, err error) *AppError {
 }
 
 type App struct {
-	API *API
+	API   *API
+	DB    *DB
+	Paths *Paths
 
 	ctx  context.Context
 	ttsl []*piper.TTS
@@ -46,13 +48,22 @@ type App struct {
 	ttsm   map[string]*piper.TTS
 }
 
-func NewApp() *App {
+func NewApp(paths *Paths) *App {
 	app := &App{
+		Paths: paths,
+
 		_state: DefaultAppState,
 		ttsm:   map[string]*piper.TTS{},
 	}
 	app.API = &API{app: app}
 	return app
+}
+
+func (a *App) Close() error {
+	if a.DB != nil {
+		a.DB.Close()
+	}
+	return nil
 }
 
 func (a *App) TTS(key string) *piper.TTS {
@@ -71,9 +82,15 @@ func (a *App) TTS(key string) *piper.TTS {
 func (a *App) OnStartup(ctx context.Context) {
 	a.ctx = ctx
 
+	db, err := OpenDB(a.Paths.DBDir)
+	if err != nil {
+		a.FataError(err)
+	}
+	a.DB = db
+
 	cfg, err := a.startup()
 	if err != nil {
-		a.Update(AppState{Error: AppError{Fatal: true, Message: err.Error()}})
+		a.FataError(err)
 		return
 	}
 	a.Update(AppState{Config: cfg})
@@ -82,7 +99,7 @@ func (a *App) OnStartup(ctx context.Context) {
 }
 
 func (a *App) startup() (Config, error) {
-	cfg, err := readConfig()
+	cfg, err := readConfig(a.Paths.ConfigFn)
 	if err != nil && !os.IsExist(err) {
 		return cfg, err
 	}
@@ -96,6 +113,17 @@ func (a *App) startup() (Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func (a *App) FataError(err error) {
+	a.UpdateState(func(s AppState) AppState {
+		e := AppError{Fatal: true, Message: err.Error()}
+		if prev := s.Error.Message; prev != "" {
+			e.Message += "\n" + prev
+		}
+		s.Error = e
+		return s
+	})
 }
 
 func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {

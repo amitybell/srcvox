@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react'
 import './Home.css'
 import { GameInfo } from './appstate'
-import { useGames, useInGame } from './hooks/query'
+import { useGames } from './hooks/query'
+import ServerList from './ServerList'
 
 function Game({ p: { iconURI, title } }: { p: GameInfo }) {
   return (
@@ -12,38 +13,30 @@ function Game({ p: { iconURI, title } }: { p: GameInfo }) {
   )
 }
 
-function PlayerOnline({ gameID }: { gameID: number }) {
-  const r = useInGame({ gameID, refresh: 60000 })
-  return <span>&nbsp;&mdash; {r.type === 'ok' ? <> {r.v.count} players online</> : r.alt}</span>
+interface GamesListProps {
+  games: GameInfo[]
+  activeIdx: number
+  onSelect: (idx: number) => void
 }
 
-function Games() {
+function GamesList({ games, onSelect, activeIdx }: GamesListProps) {
   const detailsRef = useRef<HTMLDetailsElement | null>(null)
-  const [activeIdx, setAciveIdx] = useState(0)
-
-  const r = useGames()
-  if (r.type !== 'ok') {
-    return r.alt
-  }
-
-  const games = r.v
   const active = games[activeIdx]
 
   return (
     <details ref={detailsRef} className="games-ctr">
       <summary>
         <Game p={active} />
-        <PlayerOnline gameID={active.id} />
       </summary>
       <ul>
         {games.map((p, i) => (
           <li
             key={p.id}
             onClick={() => {
-              setAciveIdx(i)
               if (detailsRef.current) {
                 detailsRef.current.open = false
               }
+              onSelect(i)
             }}
           >
             <Game p={p} />
@@ -55,9 +48,19 @@ function Games() {
 }
 
 export default function Home() {
+  const [activeIdx, setAciveIdx] = useState(0)
+  const games = useGames()
+
+  if (games.type !== 'ok') {
+    return games.alt
+  }
+
+  const active = games.v[activeIdx]
+
   return (
     <div className="home-ctr">
-      <Games />
+      <GamesList games={games.v} activeIdx={activeIdx} onSelect={setAciveIdx} />
+      <ServerList gameID={active.id} />
     </div>
   )
 }

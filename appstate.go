@@ -24,12 +24,6 @@ type AppState struct {
 }
 
 func (s AppState) Merge(p AppState) (_ AppState, events []string) {
-	if p.AudioDelay > 0 {
-		s.AudioDelay = p.AudioDelay
-	}
-	if p.AudioLimit > 0 {
-		s.AudioLimit = p.AudioLimit
-	}
 	if p.Sounds != nil {
 		s.Sounds = p.Sounds
 	}
@@ -37,17 +31,9 @@ func (s AppState) Merge(p AppState) (_ AppState, events []string) {
 		events = append(events, "sv.PresenceChange")
 		s.Presence = p.Presence
 	}
-	if p.IncludeUsernames != nil {
-		s.IncludeUsernames = p.IncludeUsernames
-	}
-	if p.ExcludeUsernames != nil {
-		s.ExcludeUsernames = p.ExcludeUsernames
-	}
 	if p.Error != (AppError{}) {
+		events = append(events, "sv.ErrorChange")
 		s.Error = p.Error
-	}
-	if p.TnetPort > 0 {
-		s.TnetPort = p.TnetPort
 	}
 	s.Config = s.Config.Merge(p.Config)
 	s.LastUpdate = time.Now()

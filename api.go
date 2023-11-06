@@ -42,3 +42,7 @@ func (a *API) Presence() Presence {
 func (a *API) Env() Environment {
 	return Env
 }
+
+func (a *API) ServerInfos(gameID uint64) ([]ServerInfo, error) {
+	return ServerInfos(a.app.DB, gameID)
+}

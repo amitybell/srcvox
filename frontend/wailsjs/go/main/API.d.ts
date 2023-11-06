@@ -14,6 +14,8 @@ export function Log(arg1:Array<any>):Promise<void>;
 
 export function Presence():Promise<main.Presence>;
 
+export function ServerInfos(arg1:number):Promise<Array<main.ServerInfo>>;
+
 export function Sounds():Promise<Array<main.SoundInfo>>;
 
 export function State():Promise<main.AppState>;

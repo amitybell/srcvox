@@ -1,7 +1,7 @@
 export * as app from '../wailsjs/go/main/API'
 export { main } from '../wailsjs/go/models'
 import { useEffect } from 'react'
-import { EventsOn } from '../wailsjs/runtime'
+import { EventsOn, BrowserOpenURL } from '../wailsjs/runtime'
 
 export type DataURI = string
 
@@ -66,4 +66,8 @@ export function useAppEvent(name: string, hdl: () => void) {
     const cb = () => hdl()
     return EventsOn(name, cb)
   }, [name, hdl])
+}
+
+export function openURL(url: string) {
+  BrowserOpenURL(url)
 }

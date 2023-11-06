@@ -11,17 +11,21 @@ import (
 )
 
 func main() {
-	defer func() {
-		if logsFile != nil {
-			logsFile.Close()
-		}
-	}()
-
 	flag.Parse()
 
-	app := NewApp()
+	paths, err := NewPaths("", "")
+	if err != nil {
+		Logs.Fatal(err)
+	}
 
-	err := wails.Run(&options.App{
+	logw := NewLogWriter(paths.LogsFn)
+	defer logw.Close()
+	Logs.SetOutput(logw)
+
+	app := NewApp(paths)
+	defer app.Close()
+
+	err = wails.Run(&options.App{
 		Title:            "SrcVox",
 		Width:            800,
 		Height:           600,
@@ -31,7 +35,7 @@ func main() {
 			Icon:             files.EmblemPNG,
 		},
 		Windows: &windows.Options{
-			WebviewUserDataPath:  WebviewDataDir,
+			WebviewUserDataPath:  paths.WebviewDataDir,
 			WebviewGpuIsDisabled: true,
 		},
 		OnStartup: app.OnStartup,

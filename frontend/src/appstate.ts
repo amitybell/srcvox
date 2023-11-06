@@ -1,5 +1,35 @@
 import { main } from '../wailsjs/go/models'
 
+export class ServerInfo implements main.ServerInfo {
+  addr: string
+  name: string
+  players: number
+  bots: number
+  restricted: boolean
+  ping: number
+
+  constructor(source?: unknown) {
+    const p = sourceObject(source)
+    this.addr = coerce('', p.addr)
+    this.name = coerce('', p.name)
+    this.players = coerce(0, p.players)
+    this.bots = coerce(0, p.bots)
+    this.restricted = coerce(false, p.restricted)
+    this.ping = coerce(0, p.ping)
+  }
+
+  equal(that: ServerInfo) {
+    return (
+      this.addr === that.addr &&
+      this.name === that.name &&
+      this.players === that.players &&
+      this.bots === that.bots &&
+      this.restricted === that.restricted &&
+      this.ping === that.ping
+    )
+  }
+}
+
 export class Environment implements main.Environment {
   startMinimized: boolean
   fakeData: boolean

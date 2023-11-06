@@ -1,6 +1,7 @@
 :root {
   --color: #fefefe;
   --background: #181818;
+  --menu-background: rgba(24, 24, 24, 0.95);
   --button-color: var(--color);
   --button-background: #343434;
   --input-color: #111111;
@@ -32,7 +33,12 @@ body {
   min-height: 100%;
 }
 
-button {
+table {
+  border-collapse: collapse;
+}
+
+button,
+.button {
   cursor: pointer;
   color: var(--button-color);
   background-color: var(--button-background);
@@ -46,7 +52,8 @@ input {
 }
 
 input,
-button {
+button,
+.button {
   border: none;
   padding: 0.5em 1em;
   border-radius: 0.5em;

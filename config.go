@@ -3,9 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/adrg/xdg"
 	"os"
-	"path/filepath"
 	"time"
 )
 
@@ -15,25 +13,6 @@ var (
 		AudioLimit: 10 * time.Second,
 		TnetPort:   31173,
 	}
-
-	DataDir = func() string {
-		dir, err := xdg.DataFile("srcvox")
-		if err != nil {
-			panic("Cannot init data dir: " + err.Error())
-		}
-		return dir
-	}()
-
-	ConfigDir = func() string {
-		dir, err := xdg.ConfigFile("srcvox")
-		if err != nil {
-			panic("Cannot init config dir: " + err.Error())
-		}
-		return dir
-	}()
-	ConfigFn = filepath.Join(ConfigDir, "config.json")
-
-	WebviewDataDir = filepath.Join(DataDir, "webview")
 )
 
 type Config struct {
@@ -63,9 +42,9 @@ func (c Config) Merge(p Config) Config {
 	return c
 }
 
-func readConfig() (Config, error) {
+func readConfig(fn string) (Config, error) {
 	cfg := DefaultConfig
-	f, err := os.Open(ConfigFn)
+	f, err := os.Open(fn)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return cfg, nil

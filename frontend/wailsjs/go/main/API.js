@@ -26,6 +26,10 @@ export function Presence() {
   return window['go']['main']['API']['Presence']();
 }
 
+export function ServerInfos(arg1) {
+  return window['go']['main']['API']['ServerInfos'](arg1);
+}
+
 export function Sounds() {
   return window['go']['main']['API']['Sounds']();
 }

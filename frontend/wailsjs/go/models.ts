@@ -153,6 +153,28 @@ export namespace main {
 	    }
 	}
 	
+	export class ServerInfo {
+	    addr: string;
+	    name: string;
+	    players: number;
+	    bots: number;
+	    restricted: boolean;
+	    ping: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ServerInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.addr = source["addr"];
+	        this.name = source["name"];
+	        this.players = source["players"];
+	        this.bots = source["bots"];
+	        this.restricted = source["restricted"];
+	        this.ping = source["ping"];
+	    }
+	}
 
 }
 
