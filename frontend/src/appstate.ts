@@ -78,6 +78,7 @@ export class GameInfo implements main.GameInfo {
   title: string
   dirName: string
   iconURI: string
+  heroURI: string
 
   constructor(source?: unknown) {
     const p = sourceObject(source)
@@ -85,6 +86,7 @@ export class GameInfo implements main.GameInfo {
     this.title = coerce('', p.title)
     this.dirName = coerce('', p.dirName)
     this.iconURI = coerce('', p.iconURI)
+    this.heroURI = coerce('', p.heroURI)
   }
 
   equal(that: GameInfo): boolean {
@@ -92,7 +94,8 @@ export class GameInfo implements main.GameInfo {
       this.id === that.id &&
       this.title === that.title &&
       this.dirName === that.dirName &&
-      this.iconURI === that.iconURI
+      this.iconURI === that.iconURI &&
+      this.heroURI === that.heroURI
     )
   }
 }
@@ -116,7 +119,8 @@ export class Presence implements main.Presence {
   userID: number
   gameID: number
   gameDir: string
-  iconURI: string
+  gameIconURI: string
+  gameHeroURI: string
   username: string
   clan: string
   name: string
@@ -127,7 +131,8 @@ export class Presence implements main.Presence {
     this.error = coerce('', p.error)
     this.userID = coerce(0, p.userID)
     this.gameID = coerce(0, p.gameID)
-    this.iconURI = coerce('', p.iconURI)
+    this.gameIconURI = coerce('', p.gameIconURI)
+    this.gameHeroURI = coerce('', p.gameHeroURI)
     this.gameDir = coerce('', p.gameDir)
     this.username = coerce('', p.username)
     this.clan = coerce('', p.clan)
@@ -141,7 +146,8 @@ export class Presence implements main.Presence {
       this.userID === that.userID &&
       this.gameID === that.gameID &&
       this.gameDir === that.gameDir &&
-      this.iconURI === that.iconURI &&
+      this.gameIconURI === that.gameIconURI &&
+      this.gameHeroURI === that.gameHeroURI &&
       this.username === that.username &&
       this.clan === that.clan &&
       this.name === that.name

@@ -8,6 +8,7 @@
   --input-background: #fefefe;
   --tab-bg: var(--button-background);
   --tab-bg-active: #565656;
+  --gutter-size: 1rem;
 }
 
 html,
@@ -29,7 +30,6 @@ body {
 }
 
 #root {
-  padding: 1rem;
   min-height: 100%;
 }
 
@@ -61,6 +61,10 @@ button,
     margin-left: 0.5rem;
   }
   font-size: inherit;
+}
+
+.app-body {
+  padding: 0 var(--gutter-size) var(--gutter-size) var(--gutter-size);
 }
 
 #App,

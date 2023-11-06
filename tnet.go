@@ -199,14 +199,8 @@ func (tn *Tnet) readLineUsrLocal(val string) {
 		Logs.Printf("readLineUsrLocal: Steam directory `%s` doesn't exist: %s\n", steamDir, err)
 	}
 
-	var game GameInfo
-	for _, g := range GamesList {
-		if g.ID == gameID {
-			game = g
-			break
-		}
-	}
-	if game.ID == 0 {
+	game, ok := GamesMap[gameID]
+	if !ok {
 		Logs.Printf("readLineUsrLocal: Unsupported gameID(%d)\n", gameID)
 		return
 	}
@@ -216,14 +210,13 @@ func (tn *Tnet) readLineUsrLocal(val string) {
 		Logs.Printf("readLineUsrLocal: Game directory `%s` doesn't exist: %s\n", gameDir, err)
 	}
 
-	mime, icon, _ := ReadGameIcon(gameID)
-
 	tn.app.UpdateState(func(s AppState) AppState {
 		s.Presence.OK = true
-		s.Presence.GameDir = gameDir
-		s.Presence.GameID = gameID
 		s.Presence.UserID = userID
-		s.Presence.IconURI = DataURI(mime, icon)
+		s.Presence.GameID = gameID
+		s.Presence.GameIconURI = game.IconURI
+		s.Presence.GameHeroURI = game.HeroURI
+		s.Presence.GameDir = gameDir
 		return s
 	})
 }

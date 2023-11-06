@@ -47,20 +47,18 @@ function GamesList({ games, onSelect, activeIdx }: GamesListProps) {
   )
 }
 
-export default function Home() {
-  const [activeIdx, setAciveIdx] = useState(0)
-  const games = useGames()
+export interface HomeProps {
+  gameIdx: number
+  games: GameInfo[]
+  onGameSelect: (gameId: number) => void
+}
 
-  if (games.type !== 'ok') {
-    return games.alt
-  }
-
-  const active = games.v[activeIdx]
-
+export default function Home({ gameIdx, games, onGameSelect }: HomeProps) {
+  const game = games[gameIdx]
   return (
     <div className="home-ctr">
-      <GamesList games={games.v} activeIdx={activeIdx} onSelect={setAciveIdx} />
-      <ServerList gameID={active.id} />
+      <GamesList games={games} activeIdx={gameIdx} onSelect={onGameSelect} />
+      <ServerList gameID={game.id} />
     </div>
   )
 }

@@ -7,14 +7,14 @@ function Body() {
     return pr.alt
   }
 
-  const { clan, name, ok, iconURI } = pr.v
+  const { clan, name, ok, gameIconURI } = pr.v
   if (!ok) {
     return null
   }
 
   return (
     <>
-      {iconURI ? <img className="presence-icon" src={iconURI} /> : null}
+      {gameIconURI ? <img className="presence-icon" src={gameIconURI} /> : null}
       <span className="presence-clan">{clan}</span>
       <span className="presence-name">{name}</span>
     </>

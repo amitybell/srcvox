@@ -2,16 +2,23 @@ import './Header.css'
 import Logo from './Logo'
 import Presence from './Presence'
 import Tabs, { Tab } from './Tabs'
+import { GameInfo } from './appstate'
 
 export interface HeaderProps {
   tabs: Tab[]
   setTab: (p: Tab) => void
   activeTab: Tab
+  game: GameInfo
 }
 
-export default function Header({ tabs, setTab, activeTab }: HeaderProps) {
+export default function Header({ tabs, setTab, activeTab, game }: HeaderProps) {
   return (
-    <header className="header-ctr">
+    <header
+      className="header-ctr"
+      style={{
+        background: `linear-gradient(to bottom, transparent, var(--background)), url(${game.heroURI}) fixed`,
+      }}
+    >
       <div className="logo-ctr">
         <Logo />
       </div>

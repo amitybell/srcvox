@@ -19,6 +19,7 @@ export namespace main {
 	    title: string;
 	    dirName: string;
 	    iconURI: string;
+	    heroURI: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new GameInfo(source);
@@ -30,6 +31,7 @@ export namespace main {
 	        this.title = source["title"];
 	        this.dirName = source["dirName"];
 	        this.iconURI = source["iconURI"];
+	        this.heroURI = source["heroURI"];
 	    }
 	}
 	export class SoundInfo {
@@ -52,7 +54,8 @@ export namespace main {
 	    clan: string;
 	    name: string;
 	    gameID: number;
-	    iconURI: string;
+	    gameIconURI: string;
+	    gameHeroURI: string;
 	    gameDir: string;
 	
 	    static createFrom(source: any = {}) {
@@ -68,7 +71,8 @@ export namespace main {
 	        this.clan = source["clan"];
 	        this.name = source["name"];
 	        this.gameID = source["gameID"];
-	        this.iconURI = source["iconURI"];
+	        this.gameIconURI = source["gameIconURI"];
+	        this.gameHeroURI = source["gameHeroURI"];
 	        this.gameDir = source["gameDir"];
 	    }
 	}

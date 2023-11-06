@@ -122,10 +122,6 @@ export function useSynthesize(text: string): QResult<string> {
   return useFetchString(`app.Synthesize(${text})`, '/app.synthesize', { text })
 }
 
-export function useGameIcon(gameID: number): QResult<string> {
-  return useFetchString(`app.InGame(${gameID})`, '/app.gameicon', { id: gameID.toString() })
-}
-
 export function useGames(): QResult<GameInfo[]> {
   return useData('app.Games', app.Games, (p) => coerce([], p).map((q) => new GameInfo(q)))
 }

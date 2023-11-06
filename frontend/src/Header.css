@@ -1,8 +1,10 @@
 .header-ctr {
   display: flex;
   align-items: center;
-  margin-bottom: 2rem;
+  padding: 2rem 0;
   justify-content: center;
+  padding-left: var(--gutter-size);
+  padding-right: var(--gutter-size);
 
   & .logo-ctr {
     width: 4rem;

@@ -12,7 +12,6 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"net/http"
 	"os"
-	"strconv"
 	"sync"
 )
 
@@ -130,32 +129,15 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
 	case "/app.sound", "/app.synthesize":
 		a.serveSound(w, r)
-	case "/app.gameicon":
-		a.serveGameIcon(w, r)
 	case "/favicon.ico":
-		a.serveGameIcon(w, r)
+		a.serveFavicon(w, r)
 	default:
 		http.NotFound(w, r)
 	}
 }
 
-func (a *App) serveFavIcon(w http.ResponseWriter, r *http.Request) {
+func (a *App) serveFavicon(w http.ResponseWriter, r *http.Request) {
 	w.Write(files.EmblemPNG)
-}
-
-func (a *App) serveGameIcon(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseUint(r.URL.Query().Get("id"), 10, 64)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
-	}
-	mime, s, err := ReadGameIcon(id)
-	if err != nil {
-		w.Header().Set("Content-Type", mime)
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
-	}
-	w.Write(s)
 }
 
 func (a *App) serveSound(w http.ResponseWriter, r *http.Request) {
