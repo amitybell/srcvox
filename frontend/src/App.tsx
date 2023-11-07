@@ -5,12 +5,12 @@ import Soundboard from './Soundboard'
 import Error from './Error'
 import Header from './Header'
 import { Tab } from './Tabs'
-import Home from './Home'
+import Servers from './Servers'
 import Settings from './Settings'
 import { useAppError, useGames } from './hooks/query'
 import Credits from './Credits'
 
-const tabs: Tab[] = [{ name: 'home' }, { name: 'soundboard' }, { name: 'credits' }]
+const tabs: Tab[] = [{ name: 'servers' }, { name: 'soundboard' }, { name: 'credits' }]
 
 function AppBody() {
   const err = useAppError()
@@ -37,8 +37,10 @@ function AppBody() {
       <main className="app-body">
         {((): ReactElement => {
           switch (tab.name) {
-            case 'home':
-              return <Home games={games.v} gameIdx={activeGameIdx} onGameSelect={setAciveGameIdx} />
+            case 'servers':
+              return (
+                <Servers games={games.v} gameIdx={activeGameIdx} onGameSelect={setAciveGameIdx} />
+              )
             case 'soundboard':
               return <Soundboard />
             case 'settings':

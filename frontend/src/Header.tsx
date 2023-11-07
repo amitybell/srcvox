@@ -16,7 +16,10 @@ export default function Header({ tabs, setTab, activeTab, game }: HeaderProps) {
     <header
       className="header-ctr"
       style={{
-        background: `linear-gradient(to bottom, transparent, var(--background)), url(${game.heroURI}) fixed`,
+        background: `linear-gradient(to bottom, transparent, var(--background)), url(${game.heroURI})`,
+        backgroundPosition: 'top left',
+        backgroundRepeat: 'no-repeat',
+        backgroundSize: 'cover',
       }}
     >
       <div className="logo-ctr">

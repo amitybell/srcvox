@@ -1,7 +1,6 @@
-import { useRef, useState } from 'react'
-import './Home.css'
+import './Servers.css'
+import { useRef } from 'react'
 import { GameInfo } from './appstate'
-import { useGames } from './hooks/query'
 import ServerList from './ServerList'
 
 function Game({ p: { iconURI, title } }: { p: GameInfo }) {
@@ -47,16 +46,16 @@ function GamesList({ games, onSelect, activeIdx }: GamesListProps) {
   )
 }
 
-export interface HomeProps {
+export interface ServersProps {
   gameIdx: number
   games: GameInfo[]
   onGameSelect: (gameId: number) => void
 }
 
-export default function Home({ gameIdx, games, onGameSelect }: HomeProps) {
+export default function Servers({ gameIdx, games, onGameSelect }: ServersProps) {
   const game = games[gameIdx]
   return (
-    <div className="home-ctr">
+    <div className="servers-ctr">
       <GamesList games={games} activeIdx={gameIdx} onSelect={onGameSelect} />
       <ServerList gameID={game.id} />
     </div>

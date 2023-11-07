@@ -1,7 +1,7 @@
 import './Tabs.css'
 
 export type Tab =
-  | { name: 'home' }
+  | { name: 'servers' }
   | { name: 'soundboard' }
   | { name: 'settings' }
   | { name: 'credits' }

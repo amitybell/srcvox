@@ -4,11 +4,11 @@
   align-items: center;
 
   & > :not(:first-child) {
-    margin-left: 0.5em;
+    margin-left: 0.5rem;
   }
 
   & .presence-icon {
-    width: 1.5em;
+    width: 1.5rem;
     height: auto;
   }
   & .presence-clan {

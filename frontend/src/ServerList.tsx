@@ -33,12 +33,13 @@ function ServerListInfo({ p: { name, players, addr, restricted, ping } }: { p: S
         <span className="serverlist-info-ping">{ping}</span>
       </td>
       <td>
-        <span className="serverlist-info-join button">
-          <button onClick={() => openURL(`steam://connect/${addr}`)}>
-            <span>JOIN</span>
-            <ConnectIcon />
-          </button>
-        </span>
+        <button
+          className="serverlist-info-join button"
+          onClick={() => openURL(`steam://connect/${addr}`)}
+        >
+          <span>JOIN</span>
+          <ConnectIcon />
+        </button>
       </td>
     </tr>
   )
@@ -55,23 +56,27 @@ export default function ServerList({ gameID }: ServerListProps) {
 
   return (
     <table className="serverlist-ctr">
-      <tr className="serverlist-info">
-        <th colSpan={2}>
-          <span className="serverlist-info-name">Servers ({servers.v.length})</span>
-        </th>
-        <th>
-          <span className="serverlist-info-players">Players ({playerCount})</span>
-        </th>
-        <th>
-          <span className="serverlist-info-ping">Ping</span>
-        </th>
-        <th>
-          <span className="serverlist-info-join"></span>
-        </th>
-      </tr>
-      {servers.v.map((p) => (
-        <ServerListInfo key={p.addr} p={p} />
-      ))}
+      <thead>
+        <tr className="serverlist-info">
+          <th colSpan={2}>
+            <span className="serverlist-info-name">Servers ({servers.v.length})</span>
+          </th>
+          <th>
+            <span className="serverlist-info-players">Players ({playerCount})</span>
+          </th>
+          <th>
+            <span className="serverlist-info-ping">Ping</span>
+          </th>
+          <th>
+            <span className="serverlist-info-join"></span>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {servers.v.map((p) => (
+          <ServerListInfo key={p.addr} p={p} />
+        ))}
+      </tbody>
     </table>
   )
 }

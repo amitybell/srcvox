@@ -6,9 +6,12 @@
   --button-background: #343434;
   --input-color: #111111;
   --input-background: #fefefe;
+  --border-color: #111111;
   --tab-bg: var(--button-background);
   --tab-bg-active: #565656;
   --gutter-size: 1rem;
+
+  font-family: sans-serif;
 }
 
 html,
@@ -21,7 +24,6 @@ body {
   &,
   & a {
     color: var(--color);
-    font-family: system-ui, sans-serif;
   }
 }
 
@@ -44,19 +46,27 @@ button,
   background-color: var(--button-background);
   display: inline-flex;
   align-items: center;
+
+  border-style: outset;
+  &:active {
+    border-style: inset;
+  }
 }
 
 input {
   color: var(--input-color);
   background-color: var(--input-background);
+  border-color: var(--border-color);
+  border-style: solid;
 }
 
 input,
 button,
 .button {
-  border: none;
-  padding: 0.5em 1em;
-  border-radius: 0.5em;
+  border-color: var(--border-color);
+  border-width: 0.0625rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
   &:not(:first-child) {
     margin-left: 0.5rem;
   }

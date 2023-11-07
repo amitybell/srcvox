@@ -49,7 +49,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.5em;
+    width: 1.5rem;
 
     & svg {
       width: 100%;

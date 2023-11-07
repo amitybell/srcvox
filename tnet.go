@@ -42,7 +42,6 @@ type Tnet struct {
 	Conn *telnet.Conn
 	Q    chan *Audio
 	stop chan struct{}
-	Ctx  context.Context
 
 	app *App
 }
@@ -81,14 +80,14 @@ func (tn *Tnet) drainQ(def *Audio) *Audio {
 	}
 }
 
-func (tn *Tnet) playLoop() {
+func (tn *Tnet) playLoop(ctx context.Context) {
 	for {
 		select {
 		case a := <-tn.Q:
 			a = tn.drainQ(a)
 			tn.play(a)
 			time.Sleep(1 * time.Second)
-		case <-tn.Ctx.Done():
+		case <-ctx.Done():
 			return
 		}
 	}
@@ -153,6 +152,9 @@ func (tn *Tnet) play(au *Audio) (err error) {
 }
 
 func (tn *Tnet) readLineName(username string) {
+	if Env.FakeData {
+		username = "* TEH * FPS DOUG"
+	}
 	clan, name := ClanName(username)
 	tn.app.UpdateState(func(s AppState) AppState {
 		// we don't set OK, because the essectial data is set by readLineUsrLocal
@@ -285,7 +287,15 @@ func (tn *Tnet) readLine(line string) {
 	}
 }
 
-func (tn *Tnet) Loop() error {
+func (tn *Tnet) Loop(ctx context.Context) error {
+	go tn.playLoop(ctx)
+
+	go func() {
+		tn.Exec(X{"bind", "backspace", `echo ` + StopWord})
+		tn.Exec(X{"name"})
+		tn.Exec(X{"path"})
+	}()
+
 	for {
 		ln, err := tn.Conn.ReadString('\n')
 		if err != nil {
@@ -305,7 +315,6 @@ func dialTnet(ctx context.Context, app *App) (_ *Tnet, cancel func(), _ error) {
 		Q:    make(chan *Audio, 1<<10),
 		stop: make(chan struct{}, 1),
 		Conn: tc,
-		Ctx:  ctx,
 		app:  app,
 	}
 	return tn, cancel, nil
@@ -323,11 +332,7 @@ func startTnet(ctx context.Context, app *App) error {
 	app.Update(AppState{Presence: Presence{}})
 	defer func() { app.Update(AppState{Presence: Presence{Error: "disconnected"}}) }()
 
-	tn.Exec(X{"bind", "backspace", `echo ` + StopWord})
-	tn.Exec(X{"name"})
-	tn.Exec(X{"path"})
-	go tn.playLoop()
-	return tn.Loop()
+	return tn.Loop(ctx)
 }
 
 func tnet(app *App) {
