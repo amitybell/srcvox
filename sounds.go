@@ -27,7 +27,7 @@ type SoundInfo struct {
 }
 
 func ReadSound(name string) (*memio.File, error) {
-	fn := "sounds/" + name + ".wav"
+	fn := "sounds/" + name + ".ogg"
 	s, err := fs.ReadFile(files.Sounds, fn)
 	if err != nil {
 		return nil, fmt.Errorf("ReadSound(%s): %w", name, err)

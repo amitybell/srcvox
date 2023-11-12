@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -16,14 +15,17 @@ import (
 
 const (
 	SourceMasterServerAddr = "hl2master.steampowered.com:27011"
-	serverListCacheMaxAge  = 24 * time.Hour
-	serverInfoCacheMaxAge  = 5 * time.Minute
+	serverListCacheMaxAge  = 6 * time.Hour
+	serverInfoCacheMaxAge  = 2 * time.Minute
 )
 
 var (
 	masterServerFirstIP = [4]byte{255, 255, 255, 255}
 	masterServerLastIP  = [4]byte{0, 0, 0, 0}
 	ErrNoServers        = errors.New("No servers found")
+	ErrChallenge        = errors.New("Challenge")
+	ErrUnknownPrefix    = errors.New("Unknown Prefix")
+	ErrUnknownHeader    = errors.New("Unknown Header")
 )
 
 const (
@@ -75,15 +77,15 @@ type MasterReply struct {
 	port uint16
 }
 
-func (mr *MasterReply) Decode(r io.Reader) error {
-	if _, err := io.ReadFull(r, mr.ip[:]); err != nil {
+func (mr *MasterReply) Decode(r *memio.File) error {
+	_, err := r.ReadFull(mr.ip[:])
+	if err != nil {
 		return err
 	}
-	port := [2]byte{}
-	if _, err := io.ReadFull(r, port[:]); err != nil {
+	mr.port, err = r.ReadUint16(binary.BigEndian)
+	if err != nil {
 		return err
 	}
-	mr.port = binary.BigEndian.Uint16(port[:])
 	return nil
 }
 
@@ -102,13 +104,13 @@ func (mr *MasterReply) String() string {
 func dialUDP(addr string) (*net.UDPConn, error) {
 	c, err := net.Dial("udp", addr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("dialUDP: %w", err)
 	}
 	return c.(*net.UDPConn), nil
 }
 
 func readMsgUDP(conn *net.UDPConn, buf *memio.File) error {
-	conn.SetReadDeadline(time.Now().Add(1 * time.Second))
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 
 	const minBfSize = 2 << 10
 	s := buf.Bytes()
@@ -117,7 +119,7 @@ func readMsgUDP(conn *net.UDPConn, buf *memio.File) error {
 	}
 	n, _, err := conn.ReadFromUDP(s)
 	if err != nil {
-		return err
+		return fmt.Errorf("readMsgUDP: %w", err)
 	}
 	buf.Reset(s[:n])
 	return nil
@@ -134,7 +136,7 @@ func queryRegionServerList(gameID uint64, region byte) ([]*MasterReply, error) {
 		Header: '1',
 		Addr:   "0.0.0.0:0",
 		Region: region,
-		Filter: fmt.Sprintf(`\dedicated\\appid\%d`, gameID),
+		Filter: fmt.Sprintf(`\appid\%d`, gameID),
 	}
 
 	if err := mq.Encode(conn); err != nil {
@@ -236,7 +238,7 @@ func serverList(db *DB, gameID uint64) ([]string, error) {
 type ServerQuery struct {
 	Header    byte
 	Payload   string
-	Challenge uint32
+	Challenge int32
 
 	buf memio.File
 }
@@ -244,19 +246,19 @@ type ServerQuery struct {
 func (sq *ServerQuery) Encode(w io.Writer) error {
 	r := &sq.buf
 	r.Seek(0, 0)
-	r.WriteByte(0xFF)
-	r.WriteByte(0xFF)
-	r.WriteByte(0xFF)
-	r.WriteByte(0xFF)
+	r.WriteInt32(binary.LittleEndian, -1)
 	r.WriteByte(sq.Header)
 	r.WriteString(sq.Payload)
 	r.WriteByte(0)
 	if sq.Challenge != 0 {
-		r.WriteUint32(binary.LittleEndian, sq.Challenge)
+		r.WriteInt32(binary.LittleEndian, sq.Challenge)
 	}
 	r.Seek(0, 0)
 	_, err := io.Copy(w, r)
-	return err
+	if err != nil {
+		return fmt.Errorf("ServerQuery.Encode: %w", err)
+	}
+	return nil
 }
 
 type ServerReply struct {
@@ -279,7 +281,7 @@ type ServerReply struct {
 	Game string
 
 	// Steam Application ID of game.
-	ID uint16
+	ID int16
 
 	// 	Number of players on the server.
 	Players byte
@@ -312,121 +314,150 @@ type ServerReply struct {
 	// 1 for secured
 	VAC byte
 
-	Ping time.Duration
-
-	br bufio.Reader
+	Ping      time.Duration
+	Challenge int32
 }
 
-func (sr *ServerReply) Decode(r io.Reader) error {
-	br := &sr.br
-	br.Reset(r)
-
-	pfx := [4]byte{}
-	if _, err := io.ReadFull(br, pfx[:]); err != nil {
-		return err
-	}
-
+func (sr *ServerReply) decodeChallenge(r *memio.File) error {
 	var err error
-	sr.Header, err = br.ReadByte()
+	sr.Challenge, err = r.ReadInt32(binary.LittleEndian)
 	if err != nil {
-		return err
+		return fmt.Errorf("ServerReply.Decode: Challenge: %w", err)
+	}
+	return ErrChallenge
+}
+
+func (sr *ServerReply) decodeInfo(r *memio.File) error {
+	var err error
+	sr.Protocol, err = r.ReadByte()
+	if err != nil {
+		return fmt.Errorf("ServerReply.Decode: Protocol: %w", err)
 	}
 
-	sr.Protocol, err = br.ReadByte()
+	sr.Name, err = r.ReadString(0)
 	if err != nil {
-		return err
+		return fmt.Errorf("ServerReply.Decode: Name: %w", err)
 	}
 
-	sr.Name, err = br.ReadString(0)
+	sr.Map, err = r.ReadString(0)
 	if err != nil {
-		return err
+		return fmt.Errorf("ServerReply.Decode: Map: %w", err)
 	}
 
-	sr.Map, err = br.ReadString(0)
+	sr.Folder, err = r.ReadString(0)
 	if err != nil {
-		return err
+		return fmt.Errorf("ServerReply.Decode: Folder: %w", err)
 	}
 
-	sr.Folder, err = br.ReadString(0)
+	sr.Game, err = r.ReadString(0)
 	if err != nil {
-		return err
+		return fmt.Errorf("ServerReply.Decode: Game: %w", err)
 	}
 
-	sr.Game, err = br.ReadString(0)
+	sr.ID, err = r.ReadInt16(binary.LittleEndian)
 	if err != nil {
-		return err
+		return fmt.Errorf("ServerReply.Decode: ID: %w", err)
 	}
 
-	id := [2]byte{}
-	if _, err := io.ReadFull(br, id[:]); err != nil {
-		return err
-	}
-	sr.ID = binary.LittleEndian.Uint16(id[:])
-
-	sr.Players, err = br.ReadByte()
+	sr.Players, err = r.ReadByte()
 	if err != nil {
-		return err
+		return fmt.Errorf("ServerReply.Decode: Players: %w", err)
 	}
 
-	sr.MaxPlayers, err = br.ReadByte()
+	sr.MaxPlayers, err = r.ReadByte()
 	if err != nil {
-		return err
+		return fmt.Errorf("ServerReply.Decode: MaxPlayers: %w", err)
 	}
 
-	sr.Bots, err = br.ReadByte()
+	sr.Bots, err = r.ReadByte()
 	if err != nil {
-		return err
+		return fmt.Errorf("ServerReply.Decode: Bots: %w", err)
 	}
 
-	sr.ServerType, err = br.ReadByte()
+	sr.ServerType, err = r.ReadByte()
 	if err != nil {
-		return err
+		return fmt.Errorf("ServerReply.Decode: ServerType: %w", err)
 	}
 
-	sr.Environment, err = br.ReadByte()
+	sr.Environment, err = r.ReadByte()
 	if err != nil {
-		return err
+		return fmt.Errorf("ServerReply.Decode: Environment: %w", err)
 	}
 
-	sr.Visibility, err = br.ReadByte()
+	sr.Visibility, err = r.ReadByte()
 	if err != nil {
-		return err
+		return fmt.Errorf("ServerReply.Decode: Visibility: %w", err)
 	}
 
-	sr.VAC, err = br.ReadByte()
+	sr.VAC, err = r.ReadByte()
 	if err != nil {
-		return err
+		return fmt.Errorf("ServerReply.Decode: VAC: %w", err)
 	}
 
 	return nil
 }
 
-func queryServerInfo(addr string) (*ServerReply, error) {
+func (sr *ServerReply) Decode(r *memio.File) error {
+	pfx, err := r.ReadInt32(binary.LittleEndian)
+	if err != nil {
+		return fmt.Errorf("ServerReply.Decode: Pfx: %w", err)
+	}
+	if pfx != -1 {
+		return fmt.Errorf("ServerReply.Decode: %w: %v", ErrUnknownPrefix, pfx)
+	}
+
+	sr.Header, err = r.ReadByte()
+	if err != nil {
+		return fmt.Errorf("ServerReply.Decode: Header: %w", err)
+	}
+	switch sr.Header {
+	case 'I':
+		return sr.decodeInfo(r)
+	case 'A':
+		return sr.decodeChallenge(r)
+	default:
+		return fmt.Errorf("ServerReply.Decode: %w: %c", ErrUnknownHeader, sr.Header)
+	}
+}
+
+func queryConn(conn *net.UDPConn, query interface{ Encode(io.Writer) error }, buf *memio.File, reply interface{ Decode(*memio.File) error }) (time.Duration, error) {
+	pingStart := time.Now()
+	if err := query.Encode(conn); err != nil {
+		return 0, fmt.Errorf("queryConn: Encode: %w", err)
+	}
+	if err := readMsgUDP(conn, buf); err != nil {
+		return 0, fmt.Errorf("queryConn: Read: %w", err)
+	}
+	if err := reply.Decode(buf); err != nil {
+		return 0, fmt.Errorf("queryConn: Decode: %w", err)
+	}
+	return time.Since(pingStart), nil
+}
+
+func queryServerInfo(addr string) (_r *ServerReply, _err error) {
 	conn, err := dialUDP(addr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("queryServerInfo(%s): %w", addr, err)
 	}
 	defer conn.Close()
 
-	query := &ServerQuery{Header: 'T', Payload: "Source Engine Query"}
-
 	buf := memio.NewFile(nil)
-	reply := &ServerReply{}
 
-	pingStart := time.Now()
-	if err := query.Encode(conn); err != nil {
-		return nil, err
+	var challenge int32
+	for {
+		reply := &ServerReply{}
+		query := &ServerQuery{Header: 'T', Payload: "Source Engine Query", Challenge: challenge}
+		ping, err := queryConn(conn, query, buf, reply)
+		switch {
+		case err == nil:
+			reply.Ping = ping
+			return reply, nil
+		case errors.Is(err, ErrChallenge):
+			challenge = reply.Challenge
+		default:
+			return nil, fmt.Errorf("queryServerInfo(%s): %w", addr, err)
+		}
 	}
-	if err := readMsgUDP(conn, buf); err != nil {
-		return nil, err
-	}
-	reply.Ping = time.Since(pingStart)
-
-	if err := reply.Decode(buf); err != nil {
-		return nil, err
-	}
-
-	return reply, nil
 }
 
 func serverInfo(db *DB, addr string) (*ServerReply, error) {
@@ -437,7 +468,7 @@ func serverInfo(db *DB, addr string) (*ServerReply, error) {
 }
 
 func ServerInfos(db *DB, gameID uint64) ([]ServerInfo, error) {
-	addrs, err := serverList(db, 1012110)
+	addrs, err := serverList(db, gameID)
 	// the info is still useful even if some requests fail
 	if len(addrs) == 0 && err != nil {
 		return nil, fmt.Errorf("ServerInfos: %w", err)

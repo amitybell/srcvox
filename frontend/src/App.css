@@ -10,6 +10,7 @@
   --tab-bg: var(--button-background);
   --tab-bg-active: #565656;
   --gutter-size: 1rem;
+  --page-width: 80rem;
 
   font-family: sans-serif;
 }
@@ -25,10 +26,6 @@ body {
   & a {
     color: var(--color);
   }
-}
-
-body {
-  overflow: auto;
 }
 
 #root {
@@ -73,13 +70,21 @@ button,
   font-size: inherit;
 }
 
-.app-body {
-  padding: 0 var(--gutter-size) var(--gutter-size) var(--gutter-size);
+.page-content {
+  width: 100%;
+  max-width: var(--page-width);
+  margin: 0 auto;
+  overflow-x: auto;
+  padding-left: var(--gutter-size);
+  padding-right: var(--gutter-size);
 }
 
+.app-body {
+  padding-bottom: 2rem;
+}
+
+#root,
 #App,
 body {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+  min-height: 100%;
 }

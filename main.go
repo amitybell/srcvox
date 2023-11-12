@@ -27,8 +27,8 @@ func main() {
 
 	err = wails.Run(&options.App{
 		Title:            "SrcVox",
-		Width:            800,
-		Height:           600,
+		Width:            58 * 16,
+		Height:           32 * 16,
 		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
 		Linux: &linux.Options{
 			WebviewGpuPolicy: linux.WebviewGpuPolicyNever,

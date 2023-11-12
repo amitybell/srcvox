@@ -24,7 +24,7 @@ type GameImageKind string
 
 const (
 	IconImage GameImageKind = "icon"
-	HeroImage GameImageKind = "hero"
+	HeroImage GameImageKind = "library_hero"
 )
 
 type GameInfo struct {

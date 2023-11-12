@@ -8,30 +8,33 @@ import (
 
 var (
 	Translations = map[string][]string{
-		"<3":   {"love"},
-		"i":    {"I"},
-		"sry":  {"sorry"},
-		"bb":   {"bye", "bye bye", "see ya"},
-		"gl":   {"good luck!"},
-		"bbq":  {"barbeque"},
-		"hf":   {"have fun!"},
-		"kfc":  {"KFC"},
-		"gg":   {"GG", "good game"},
-		"np":   {"no problem", "no worries", "no problemo", "shit happens"},
-		"glhf": {"good luck, have fun!"},
-		"ns":   {"nice", "nice shot", "noice"},
-		"ko":   {"KO", "knock out"},
-		"wb":   {"welcome back"},
+		"<3":  {"love"},
+		"i":   {"I"},
+		"sry": {"sorry"},
+		"bb":  {"bye", "bye bye", "see ya", "see you later"},
+		"brb": {"back", "I'll be right back"},
+		"gl":  {"good luck!"},
+		"bbq": {"barbeque"},
+		"hf":  {"have fun!"},
+		"kfc": {"KFC", "kfc"},
+		"np":  {"no problem", "no worries", "no problemo", "shit happens"},
+		"ns":  {"nice", "nice shot", "noice"},
+		"ko":  {"KO", "knock out"},
+		"wb":  {"welcome back"},
 	}
 
 	Substites = map[string][]string{
+		"glhf":   {"good luck, have fun!"},
+		"gg":     {"GG", "good game", "game", "good", "nice game", "well played"},
 		"icu":    {"I see you!"},
-		"icq":    {"I seek you!", "list", "look", "you just made the list"},
+		"icq":    {"list", "look", "honey", "run2"},
 		"yw":     {"you're welcome!"},
 		"zombie": {"zombie", "drunken master"},
 		"hacker": {"hacker", "$name is the hacker!"},
 		"hack":   {"hack", "hack the planet!"},
 		"usure":  {"I'm sure"},
+		"boxxy":  {"boxxy", "iamboxxy"},
+		"baby":   {"corner"},
 	}
 )
 

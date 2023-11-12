@@ -13,20 +13,22 @@ export interface HeaderProps {
 
 export default function Header({ tabs, setTab, activeTab, game }: HeaderProps) {
   return (
-    <header
+    <div
       className="header-ctr"
       style={{
-        background: `linear-gradient(to bottom, transparent, var(--background)), url(${game.heroURI})`,
+        backgroundImage: `linear-gradient(to bottom, transparent, var(--background)), url(${game.heroURI})`,
         backgroundPosition: 'top left',
         backgroundRepeat: 'no-repeat',
         backgroundSize: 'cover',
       }}
     >
-      <div className="logo-ctr">
-        <Logo />
-      </div>
-      <Tabs tabs={tabs} active={activeTab} setTab={setTab} />
-      <Presence />
-    </header>
+      <header className="header page-content">
+        <div className="logo-ctr">
+          <Logo />
+        </div>
+        <Tabs tabs={tabs} active={activeTab} setTab={setTab} />
+        <Presence />
+      </header>
+    </div>
   )
 }

@@ -156,7 +156,7 @@ export function useEnv(): QResult<Environment> {
 
 export function useServerInfos(gameID: number, refresh: number): QResult<ServerInfo[]> {
   return useData(
-    'app.ServerInfos',
+    `app.ServerInfos(${gameID})`,
     () => app.ServerInfos(gameID),
     (p) => coerce([], p).map((q) => new ServerInfo(q)),
     {

@@ -1,45 +1,95 @@
 .servers-ctr {
-}
+  & tr {
+    & .servers-info-name-ctr {
+      width: 100%;
+      padding-left: 0;
+      padding-right: 0;
 
-.game-ctr {
-  display: inline-flex;
-  align-items: center;
+      & .servers-info-name {
+        display: flex;
+        align-items: center;
 
-  & .game-icon {
-    width: 2rem;
-    height: auto;
-  }
-  & .game-title {
-    margin-left: 1rem;
-  }
-}
-
-.games-ctr {
-  margin-bottom: 2rem;
-
-  & summary {
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-
-    &::marker,
-    &::-webkit-details-marker {
-      display: none;
+        & .menu-ctr {
+          padding-top: 0;
+          padding-bottom: 0;
+        }
+      }
     }
   }
-  & ul {
-    list-style: none;
-    position: absolute;
-    background-color: var(--menu-background);
-    width: 100%;
-  }
-  & li {
-    padding: 10px;
-    margin: 5px;
-  }
-  & li:hover {
-  }
-}
 
-.game-icon {
+  & > tbody > tr {
+    &.empty {
+      opacity: 0.75;
+    }
+    &.restricted {
+      opacity: 0.25;
+    }
+    &:nth-child(odd) {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+    &:nth-child(even) {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+  }
+
+  & th {
+    text-transform: uppercase;
+  }
+
+  & th,
+  & td {
+    text-align: left;
+    vertical-align: center;
+    padding: 0.75rem 0.5rem;
+    white-space: nowrap;
+
+    &.servers-info-name {
+      width: 100%;
+    }
+  }
+
+  & .servers-info-icon svg {
+    font-size: 1.5rem;
+  }
+
+  & .servers-info-join button {
+    padding: 0;
+
+    & > :not(:first-child) {
+      margin-left: 0.5rem;
+    }
+  }
+
+  & .game-ctr {
+    width: 100%;
+    display: flex;
+    align-items: center;
+  }
+
+  & .games-list-menu {
+    padding: 0.5rem 0;
+    min-width: 30rem;
+
+    & .game-icon {
+      width: 2rem;
+      height: auto;
+      border-radius: 0.5rem;
+    }
+    & .game-title {
+      margin-left: 1rem;
+    }
+
+    & .games-menu-title {
+      display: flex;
+      align-items: center;
+
+      & > :not(:first-child) {
+        margin-left: 0.5rem;
+      }
+
+      & .games-list-menu {
+        padding: 0;
+      }
+    }
+  }
 }

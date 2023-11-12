@@ -49,7 +49,6 @@ export namespace main {
 	export class Presence {
 	    ok: boolean;
 	    error: string;
-	    userID: number;
 	    username: string;
 	    clan: string;
 	    name: string;
@@ -66,7 +65,6 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.ok = source["ok"];
 	        this.error = source["error"];
-	        this.userID = source["userID"];
 	        this.username = source["username"];
 	        this.clan = source["clan"];
 	        this.name = source["name"];

@@ -30,9 +30,8 @@ var (
 	}
 
 	ChatPat     = regexp.MustCompile(`^(?:[*]DEAD[*])?\s*(?:\([^)]+\))?\s*(.+?)\s*:\s*(?:[#]|:\s?>|:\s?<|<\s?:|>\s?:)\s*(.+?)\s*$`)
-	CvarPat     = regexp.MustCompile(`^"([^"]+)"\s*=\s*"([^"]*)"`)
-	PathsPat    = regexp.MustCompile(`^(WORKSHOP|EXECUTABLE_PATH|PLATFORM|MOD|GAMEBIN|GAME|GAME|CONTENT|CONTENT|DEFAULT_WRITE_PATH|LOGDIR|USRLOCAL|CONFIG)\s*"([^"]*)"`)
-	UserDataPat = regexp.MustCompile(`(?i)^(.+)[/\\]userdata[/\\](\d+)[/\\](\d+).+?$`)
+	CvarPat     = regexp.MustCompile(`^(?:\[[^\]]+\])?"?([^"]+)"?\s*=\s*"([^"]*)"`)
+	GamePathPat = regexp.MustCompile(`(?i)^GAME\s.*"([^"]+[/\\]steam[/\\]steamapps[/\\]common)[/\\]+([^/\\]+)`)
 	FlatpakPat  = regexp.MustCompile(`^\w+:([\\].+)`)
 )
 
@@ -157,7 +156,7 @@ func (tn *Tnet) readLineName(username string) {
 	}
 	clan, name := ClanName(username)
 	tn.app.UpdateState(func(s AppState) AppState {
-		// we don't set OK, because the essectial data is set by readLineUsrLocal
+		// we don't set OK, because the essectial data is set by readLineGamePath
 		s.Presence.Username = username
 		s.Presence.Clan = clan
 		s.Presence.Name = name
@@ -172,21 +171,16 @@ func (tn *Tnet) readLineCvar(name, val string) {
 	}
 }
 
-func (tn *Tnet) readLineUsrLocal(val string) {
-	m := UserDataPat.FindStringSubmatch(val)
-	if len(m) != 4 {
-		Logs.Printf("readLineUsrLocal: Failed to parse USRLOCAL path `%s`\n", val)
-		return
+func (tn *Tnet) readLineGamePath(steamDir, gameNm string) {
+	var game GameInfo
+	for _, g := range GamesList {
+		if strings.EqualFold(g.DirName, gameNm) {
+			game = g
+			break
+		}
 	}
-	steamDir := m[1]
-	userID, err := strconv.ParseUint(m[2], 10, 64)
-	if err != nil {
-		Logs.Printf("readLineUsrLocal: Failed to parse USRLOCAL userID(%s): %s\n", m[2], err)
-		return
-	}
-	gameID, err := strconv.ParseUint(m[3], 10, 64)
-	if err != nil {
-		Logs.Printf("readLineUsrLocal: Failed to parse USRLOCAL gameID(%s): %s\n", m[3], err)
+	if game.ID == 0 {
+		Logs.Printf("readLineGamePath: Unsupported game: %s\n", gameNm)
 		return
 	}
 
@@ -194,40 +188,27 @@ func (tn *Tnet) readLineUsrLocal(val string) {
 		steamDir = strings.ReplaceAll(m[1], `\`, `/`)
 		if _, err := os.Stat(steamDir); err != nil {
 			// TODO: replace this hack with a generic case-insensitive path resolution
-			steamDir = strings.ReplaceAll(steamDir, `steam`, `Steam`)
+			steamDir = strings.ReplaceAll(steamDir, `steam/`, `Steam/`)
 		}
 	}
 	if _, err := os.Stat(steamDir); err != nil {
-		Logs.Printf("readLineUsrLocal: Steam directory `%s` doesn't exist: %s\n", steamDir, err)
-	}
-
-	game, ok := GamesMap[gameID]
-	if !ok {
-		Logs.Printf("readLineUsrLocal: Unsupported gameID(%d)\n", gameID)
+		Logs.Printf("readLineGamePath: Steam directory `%s` doesn't exist: %s\n", steamDir, err)
 		return
 	}
 
-	gameDir := filepath.Join(steamDir, "steamapps", "common", game.DirName)
+	gameDir := filepath.Join(steamDir, game.DirName)
 	if _, err := os.Stat(gameDir); err != nil {
-		Logs.Printf("readLineUsrLocal: Game directory `%s` doesn't exist: %s\n", gameDir, err)
+		Logs.Printf("readLineGamePath: Game directory `%s` doesn't exist: %s\n", gameDir, err)
 	}
 
 	tn.app.UpdateState(func(s AppState) AppState {
 		s.Presence.OK = true
-		s.Presence.UserID = userID
-		s.Presence.GameID = gameID
+		s.Presence.GameID = game.ID
 		s.Presence.GameIconURI = game.IconURI
 		s.Presence.GameHeroURI = game.HeroURI
 		s.Presence.GameDir = gameDir
 		return s
 	})
-}
-
-func (tn *Tnet) readLinePaths(name, val string) {
-	switch name {
-	case "USRLOCAL":
-		tn.readLineUsrLocal(val)
-	}
 }
 
 func (tn *Tnet) readLineChat(name, msg string) {
@@ -281,8 +262,8 @@ func (tn *Tnet) readLine(line string) {
 		return
 	}
 
-	if ln := PathsPat.FindStringSubmatch(line); len(ln) == 3 {
-		tn.readLinePaths(ln[1], ln[2])
+	if ln := GamePathPat.FindStringSubmatch(line); len(ln) == 3 {
+		tn.readLineGamePath(ln[1], ln[2])
 		return
 	}
 }
@@ -328,7 +309,7 @@ func startTnet(ctx context.Context, app *App) error {
 	}
 	defer cancel()
 
-	// reset any stale data. it will be re-initialized by readLineUsrLocal and readLineName
+	// reset any stale data. it will be re-initialized by readLineGamePath and readLineName
 	app.Update(AppState{Presence: Presence{}})
 	defer func() { app.Update(AppState{Presence: Presence{Error: "disconnected"}}) }()
 

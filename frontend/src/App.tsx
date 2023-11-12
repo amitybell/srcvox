@@ -34,12 +34,18 @@ function AppBody() {
   return (
     <>
       <Header tabs={tabs} setTab={setTab} activeTab={tab} game={game} />
-      <main className="app-body">
+      <main className="app-body page-content">
         {((): ReactElement => {
           switch (tab.name) {
             case 'servers':
               return (
-                <Servers games={games.v} gameIdx={activeGameIdx} onGameSelect={setAciveGameIdx} />
+                <Servers
+                  games={games.v}
+                  gameIdx={activeGameIdx}
+                  onGameSelect={(i) => {
+                    setAciveGameIdx(i)
+                  }}
+                />
               )
             case 'soundboard':
               return <Soundboard />
