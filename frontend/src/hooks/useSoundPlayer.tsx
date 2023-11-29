@@ -1,85 +1,101 @@
-import { ReactNode, useEffect, useReducer, useRef } from 'react'
-import { FetchDataResult, fetchSound } from '../api'
+import { ReactNode, useReducer } from 'react'
+import { useAppURL } from './query'
 
 interface State {
   text: string
-  src: string
+  status: SoundPlayerStatus
+  position?: number
+  duration?: number
 }
 
-type Action = { type: 'toggle'; text: string } | { type: 'play'; src: string } | { type: 'stop' }
+type Action =
+  | { type: 'toggle'; text: string }
+  | { type: 'stop' }
+  | { type: 'loading' }
+  | { type: 'playing'; pos: number; dur: number }
+  | { type: 'progress'; pos: number; dur: number }
+  | { type: 'status'; status: SoundPlayerStatus }
 
 function reducer(s: State, a: Action): State {
   switch (a.type) {
     case 'toggle':
-      return { ...s, text: s.text === a.text ? '' : a.text }
+      if (a.text !== s.text) {
+        // the sounds load very quickly to just skip to the playing state, to avoid a flicker
+        return { text: a.text, status: 'playing' }
+      }
+      return { text: '', status: 'stopped' }
     case 'stop':
-      return { ...s, text: '', src: '' }
-    case 'play':
-      return { ...s, src: a.src }
+      return { text: '', status: 'stopped' }
+    case 'loading':
+      return { ...s, status: 'loading' }
+    case 'playing':
+      return { ...s, duration: a.dur }
+    case 'progress':
+      return { ...s, position: a.pos, duration: a.dur }
+    case 'status':
+      return { ...s, status: a.status }
   }
 }
 
-export type SoundStatus = 'stopped' | 'loading' | 'playing'
+export type SoundPlayerStatus = 'stopped' | 'loading' | 'playing'
 
 export interface SoundPlayer {
   embed: ReactNode
   toggle: (text: string) => void
-  status: SoundStatus
+  status: SoundPlayerStatus
   text: string
+  position?: number
+  duration?: number
 }
 
-export function useSoundPlayer(): SoundPlayer {
-  const loading = useRef<FetchDataResult | null>(null)
-  const [state, dispatch] = useReducer(reducer, { text: '', src: '' })
-  const { text, src } = state
+export interface SoundPlayerProps {
+  withProgress?: boolean
+}
 
-  useEffect(() => {
-    loading.current?.cancel()
-    loading.current = null
+export function useSoundPlayer({ withProgress }: SoundPlayerProps = {}): SoundPlayer {
+  const [state, dispatch] = useReducer(reducer, {
+    text: '',
+    status: 'stopped',
+  })
+  const { text, status, position, duration } = state
+  const src = useAppURL('/app.sound', { text })
 
-    if (!text) {
-      dispatch({ type: 'stop' })
-      return
-    }
-
-    const fdr = fetchSound(text)
-    loading.current = fdr
-
-    fdr.promise
-      .then((src) => {
-        if (loading.current !== fdr) {
-          return
+  const embed =
+    text && src.type === 'ok' ? (
+      <audio
+        controls={false}
+        autoPlay={true}
+        hidden={true}
+        src={src.v}
+        onPlaying={({ currentTarget: el }) =>
+          dispatch({ type: 'playing', pos: el.currentTime, dur: el.duration })
         }
-        dispatch({ type: 'play', src })
-      })
-      .catch((e) => {})
-      .finally(() => {
-        if (loading.current !== fdr) {
-          return
+        onTimeUpdate={
+          withProgress
+            ? ({ currentTarget: el }) => {
+                const pos = el.currentTime
+                const dur = el.duration
+                if (dur > 0) {
+                  dispatch({ type: 'progress', pos, dur })
+                }
+              }
+            : undefined
         }
-        loading.current = null
-      })
+        onEnded={() => dispatch({ type: 'stop' })}
+        onError={() => dispatch({ type: 'stop' })}
+      />
+    ) : null
 
-    return fdr.cancel
-  }, [text])
-
-  const embed = src ? (
-    <audio
-      controls={false}
-      autoPlay={true}
-      hidden={true}
-      src={src}
-      onEnded={() => dispatch({ type: 'stop' })}
-      onError={() => dispatch({ type: 'stop' })}
-    />
-  ) : null
   const toggle = (text: string) => {
     dispatch({ type: 'toggle', text })
   }
+
   return {
     embed,
     toggle,
     text,
-    status: loading.current ? 'loading' : text ? 'playing' : 'stopped',
+    status,
+    position,
+    duration,
   }
 }

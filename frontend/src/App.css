@@ -1,7 +1,9 @@
 :root {
-  --color: #fefefe;
-  --background: #181818;
-  --menu-background: rgba(24, 24, 24, 0.95);
+  --color: #fff;
+  --highlight-color: #eed202;
+  --background: #000;
+  --menu-bg: rgb(24 24 24 / 90%);
+  --menu-bg-hover: rgb(24 24 24);
   --button-color: var(--color);
   --button-background: #343434;
   --input-color: #111111;
@@ -11,6 +13,11 @@
   --tab-bg-active: #565656;
   --gutter-size: 1rem;
   --page-width: 80rem;
+  --row-bg-even: rgb(170 170 170 / 0.35);
+  --row-bg-odd: rgb(170 170 170 / 0.1);
+  --app-bg: rgb(0 0 0 / 0.75);
+  --modal-fg: var(--color);
+  --modal-bg: rgb(0 0 0 / 0.95);
 
   font-family: sans-serif;
 }
@@ -28,10 +35,6 @@ body {
   }
 }
 
-#root {
-  min-height: 100%;
-}
-
 table {
   border-collapse: collapse;
 }
@@ -43,6 +46,8 @@ button,
   background-color: var(--button-background);
   display: inline-flex;
   align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
 
   border-style: outset;
   &:active {
@@ -55,6 +60,7 @@ input {
   background-color: var(--input-background);
   border-color: var(--border-color);
   border-style: solid;
+  padding: 0.5rem 1rem;
 }
 
 input,
@@ -62,12 +68,12 @@ button,
 .button {
   border-color: var(--border-color);
   border-width: 0.0625rem;
-  padding: 0.5rem 1rem;
   border-radius: 0.5rem;
-  &:not(:first-child) {
-    margin-left: 0.5rem;
-  }
   font-size: inherit;
+
+  &:focus {
+    outline: 2px solid var(--highlight-color);
+  }
 }
 
 .page-content {
@@ -81,6 +87,13 @@ button,
 
 .app-body {
   padding-bottom: 2rem;
+}
+
+.app-ctr {
+  width: 100%;
+  min-height: 100vh;
+  position: relative;
+  background: var(--app-bg);
 }
 
 #root,

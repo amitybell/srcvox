@@ -3,16 +3,31 @@
   align-items: center;
   padding-top: 2rem;
   padding-bottom: 2rem;
+  white-space: nowrap;
+  gap: 1.5rem;
 
   & .logo-ctr {
-    width: 4rem;
+    width: 3rem;
     display: inline-flex;
     opacity: 0.75;
   }
 
   & .tabs-ctr {
-    flex: 1;
     align-items: center;
-    margin-left: 1rem;
+    flex: 1;
+  }
+
+  & .menu-icon {
+    font-size: 1.5rem;
+  }
+
+  & .menu-list {
+    right: 0;
+    width: 10rem;
+    background: var(--menu-bg);
+
+    & .menu-item {
+      justify-content: flex-end;
+    }
   }
 }

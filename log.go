@@ -3,10 +3,15 @@ package main
 import (
 	"log"
 	"os"
+
+	"github.com/cockroachdb/pebble"
 )
 
 var (
-	Logs = log.New(os.Stderr, "srcvox: ", log.Lshortfile|log.Ltime)
+	osStderr = os.Stderr
+	Logs     = log.New(osStderr, "srcvox: ", log.Lshortfile|log.Ltime)
+
+	_ pebble.Logger = (*pebbleLogger)(nil)
 )
 
 type LogWriter struct{ F *os.File }
@@ -18,7 +23,7 @@ func (w *LogWriter) Write(p []byte) (int, error) {
 		// we can't guarantee the file will be closed, so sync just-in-case
 		w.F.Sync()
 	}
-	return os.Stderr.Write(p)
+	return osStderr.Write(p)
 }
 
 func (w *LogWriter) Close() error {
@@ -31,4 +36,23 @@ func (w *LogWriter) Close() error {
 func NewLogWriter(fn string) *LogWriter {
 	f, _ := os.OpenFile(fn, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 	return &LogWriter{F: f}
+}
+
+type pebbleLogger struct {
+	LogInfo bool
+}
+
+func (p *pebbleLogger) Infof(format string, args ...any) {
+	if !p.LogInfo {
+		return
+	}
+	Logs.Printf("pebble.INFO: "+format, args...)
+}
+
+func (p *pebbleLogger) Errorf(format string, args ...any) {
+	Logs.Printf("pebble.ERROR: "+format, args...)
+}
+
+func (p *pebbleLogger) Fatalf(format string, args ...any) {
+	Logs.Printf("pebble.FATAL: "+format, args...)
 }

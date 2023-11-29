@@ -4,21 +4,54 @@ import (
 	"fmt"
 	"github.com/amitybell/srcvox/files"
 	"io/fs"
+	"path"
+	"strconv"
 )
 
 var (
-	GamesList = []GameInfo{
-		MustInitGameInfo(1012110, "Military Conflict - Vietnam"),
+	GamesList = []*GameInfo{
+		MustInitGameInfo(GameInfo{
+			ID:          1012110,
+			Title:       "Military Conflict - Vietnam",
+			MapImageDir: "materials/panorama/images/map_icons/playmenu",
+			BgVideoFn:   "panorama/videos/background.webm",
+			PakDir:      "vietnam",
+			PakPfx:      "vietnam/pak01",
+		}),
 	}
 
-	GamesMap = func() map[uint64]GameInfo {
-		m := map[uint64]GameInfo{}
+	GamesMap = func() map[uint64]*GameInfo {
+		m := map[uint64]*GameInfo{}
 		for _, g := range GamesList {
 			m[g.ID] = g
 		}
 		return m
 	}()
+
+	GamesMapString = func() map[string]*GameInfo {
+		m := map[string]*GameInfo{}
+		for _, g := range GamesList {
+			m[strconv.FormatUint(g.ID, 10)] = g
+		}
+		return m
+	}()
 )
+
+func (g *GameInfo) OpenFile(path string) (fs.File, error) {
+	pfs, err := GetPakFS(g)
+	if err != nil {
+		return nil, err
+	}
+	return pfs.Open(path)
+}
+
+func (g *GameInfo) OpenBgVideo() (fs.File, error) {
+	return g.OpenFile(g.BgVideoFn)
+}
+
+func (g *GameInfo) OpenMapImage(name string) (fs.File, error) {
+	return g.OpenFile(path.Join(g.MapImageDir, name+".png"))
+}
 
 type GameImageKind string
 
@@ -28,11 +61,17 @@ const (
 )
 
 type GameInfo struct {
-	ID      uint64 `json:"id"`
-	Title   string `json:"title"`
-	DirName string `json:"dirName"`
-	IconURI string `json:"iconURI"`
-	HeroURI string `json:"heroURI"`
+	ID          uint64 `json:"id"`
+	Title       string `json:"title"`
+	DirName     string `json:"dirName"`
+	IconURI     string `json:"iconURI"`
+	HeroURI     string `json:"heroURI"`
+	MapImageDir string
+	MapImageURL string `json:"mapImageURL"`
+	BgVideoURL  string `json:"bgVideoURL"`
+	BgVideoFn   string
+	PakDir      string
+	PakPfx      string
 }
 
 func ReadGameImage(id uint64, kind GameImageKind) (mime string, _ []byte, _ error) {
@@ -51,12 +90,21 @@ func MustReadGameImageURI(id uint64, kind GameImageKind) string {
 	return DataURI(mime, s)
 }
 
-func MustInitGameInfo(id uint64, name string) GameInfo {
-	return GameInfo{
-		ID:      id,
-		Title:   name,
-		DirName: name,
-		IconURI: MustReadGameImageURI(id, IconImage),
-		HeroURI: MustReadGameImageURI(id, HeroImage),
+func MustInitGameInfo(g GameInfo) *GameInfo {
+	if g.ID == 0 {
+		panic("ID is not set")
 	}
+	if g.Title == "" {
+		panic("Title is not set")
+	}
+	if g.DirName == "" {
+		g.DirName = g.Title
+	}
+	if g.IconURI == "" {
+		g.IconURI = MustReadGameImageURI(g.ID, IconImage)
+	}
+	if g.HeroURI == "" {
+		g.HeroURI = MustReadGameImageURI(g.ID, HeroImage)
+	}
+	return &g
 }

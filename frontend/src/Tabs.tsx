@@ -1,10 +1,6 @@
 import './Tabs.css'
 
-export type Tab =
-  | { name: 'servers' }
-  | { name: 'soundboard' }
-  | { name: 'settings' }
-  | { name: 'credits' }
+export type Tab = { name: 'servers' } | { name: 'soundboard' }
 
 export interface TabProps {
   tab: Tab

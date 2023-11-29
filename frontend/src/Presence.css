@@ -2,18 +2,29 @@
   display: inline-flex;
   justify-content: center;
   align-items: center;
+  font-weight: bold;
+
+  opacity: 0.5;
+  &.in-game {
+    opacity: 1;
+  }
 
   & > :not(:first-child) {
     margin-left: 0.5rem;
   }
 
   & .presence-icon {
-    width: 1.5rem;
-    height: auto;
+    width: auto;
+    height: 2rem;
+    border-radius: 0.25rem;
   }
   & .presence-clan {
     opacity: 0.75;
   }
   & .presence-name {
+  }
+  & .presence-humans {
+    opacity: 0.75;
+    font-size: smaller;
   }
 }

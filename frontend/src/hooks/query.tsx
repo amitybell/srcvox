@@ -1,6 +1,7 @@
 import {
   QueryFunction,
   UndefinedInitialDataOptions,
+  useQueries,
   useQuery,
   UseQueryResult,
 } from '@tanstack/react-query'
@@ -16,6 +17,7 @@ import {
   coerce,
   Environment,
   ServerInfo,
+  Region,
 } from '../appstate'
 import { app, useAppEvent } from '../api'
 import Spinner from '../Spinner'
@@ -38,18 +40,7 @@ export type QResult<T> =
       refetch: UseQueryResult['refetch']
     }
 
-export function useData<T, U>(
-  key: string | string[],
-  query: QueryFunction<U>,
-  consruct: (data: U) => T,
-  extraOptions: Omit<UndefinedInitialDataOptions<U>, 'queryKey' | 'queryFn'> = {},
-): QResult<T> {
-  const opts = {
-    ...extraOptions,
-    queryKey: typeof key === 'string' ? [key] : key,
-    queryFn: query,
-  }
-  const { isLoading, error, data, refetch } = useQuery<U>(opts)
+function qResult<T>({ isLoading, refetch, error, data }: UseQueryResult<T, Error>): QResult<T> {
   if (isLoading) {
     return {
       type: 'loading',
@@ -67,44 +58,51 @@ export function useData<T, U>(
   if (!data) {
     throw new Error(`data is ${data}`)
   }
-  return { type: 'ok', v: consruct(data), refetch }
+  return { type: 'ok', v: data, refetch }
 }
 
-export function useFetch<T, U>(
+export function useData<T, U>(
+  key: string | string[],
+  queryFn: QueryFunction<U>,
+  select: (data: U) => T,
+  extraOptions: Omit<UndefinedInitialDataOptions<U>, 'queryKey' | 'queryFn'> = {},
+): QResult<T> {
+  const opts = {
+    ...extraOptions,
+    queryKey: typeof key === 'string' ? [key] : key,
+    queryFn,
+    select,
+  }
+  return qResult(useQuery(opts))
+}
+
+export function useFetchDataURI(
   key: string | string[],
   url: string,
   params: Record<string, string> = {},
-  consruct: (data: U) => T,
-  extraOptions: Omit<UndefinedInitialDataOptions<U>, 'queryKey' | 'queryFn'> = {},
-): QResult<T> {
+  extraOptions: Omit<UndefinedInitialDataOptions<string>, 'queryKey' | 'queryFn'> = {},
+): QResult<string> {
   return useData(
     key,
     async ({ signal }) => {
-      const u = new URL(url)
+      const q = new URLSearchParams()
       for (const [k, v] of Object.entries(params)) {
-        u.searchParams.set(k, v)
+        q.set(k, v)
       }
-      const r = await fetch(u, {
+      const targ = `${url}${url.includes('?') ? '&' : '?'}${q}`
+      const r = await fetch(targ, {
         signal,
         headers: {
           pragma: 'no-cache',
           'cache-control': 'no-cache',
         },
       })
-      return await r.json()
+      const b = await r.blob()
+      return URL.createObjectURL(b)
     },
-    consruct,
+    (r) => r,
     extraOptions,
   )
-}
-
-export function useFetchString(
-  key: string | string[],
-  url: string,
-  params: Record<string, string> = {},
-  extraOptions: Omit<UndefinedInitialDataOptions<string>, 'queryKey' | 'queryFn'> = {},
-): QResult<string> {
-  return useFetch<string, string>(key, url, params, (s) => s, extraOptions)
 }
 
 export function useInGame(p: { gameID: number; refresh: number }): QResult<InGame> {
@@ -119,7 +117,31 @@ export function useInGame(p: { gameID: number; refresh: number }): QResult<InGam
 }
 
 export function useSynthesize(text: string): QResult<string> {
-  return useFetchString(`app.Synthesize(${text})`, '/app.synthesize', { text })
+  return useFetchDataURI(`app.Synthesize(${text})`, '/app.synthesize', { text })
+}
+
+export function useMapImage(gameID: number, mapName: string): QResult<string> {
+  return useFetchDataURI(`app.useMapImage(${gameID}, ${mapName})`, '/app.mapimage', {
+    id: gameID.toString(),
+    map: mapName,
+  })
+}
+
+export function useAppAddr(): QResult<string> {
+  return useData('app.AppAddr', app.AppAddr, (p) => coerce('', p))
+}
+
+export function useAppURL(path: string, params: Record<string, string> = {}): QResult<string> {
+  const addr = useAppAddr()
+  if (addr.type !== 'ok') {
+    return addr
+  }
+  const q = new URLSearchParams(params)
+  return { ...addr, v: `http://${addr.v}${path}?${q}` }
+}
+
+export function useBgVideo(gameID: number): QResult<string> {
+  return useAppURL('/app.bgvideo', { id: gameID.toString() })
 }
 
 export function useGames(): QResult<GameInfo[]> {
@@ -154,11 +176,47 @@ export function useEnv(): QResult<Environment> {
   return useData('app.Env', app.Env, (p) => new Environment(p))
 }
 
-export function useServerInfos(gameID: number, refresh: number): QResult<ServerInfo[]> {
+export function useServerInfo(region: Region, addr: string, refresh: number): QResult<ServerInfo> {
   return useData(
-    `app.ServerInfos(${gameID})`,
-    () => app.ServerInfos(gameID),
-    (p) => coerce([], p).map((q) => new ServerInfo(q)),
+    `app.ServerInfo(${addr})`,
+    () => app.ServerInfo(region, addr),
+    (p) => new ServerInfo(p),
+    {
+      refetchInterval: refresh > 0 ? refresh : false,
+    },
+  )
+}
+
+export function useServerInfos(
+  addrs: Record<string, Region>,
+  refresh: number,
+  less: (a: ServerInfo, b: ServerInfo) => boolean,
+): ServerInfo[] {
+  const res = useQueries({
+    queries: Object.entries(addrs).map(([addr, reg]) => ({
+      queryKey: ['useServerInfos', addr],
+      queryFn: () => app.ServerInfo(reg, addr),
+      select: (p: unknown) => new ServerInfo(p),
+      refetchInterval: refresh > 0 ? refresh : undefined,
+    })),
+  })
+  return res
+    .map((p) => {
+      const r = qResult(p)
+      if (r.type === 'ok') {
+        return r.v
+      }
+      return null
+    })
+    .filter((p): p is ServerInfo => p != null)
+    .sort((a, b) => (less(a, b) ? -1 : 1))
+}
+
+export function useServers(gameID: number, refresh: number): QResult<{ [key: string]: Region }> {
+  return useData(
+    `app.Servers(${gameID})`,
+    () => app.Servers(gameID),
+    (p) => coerce({}, p),
     {
       refetchInterval: refresh > 0 ? refresh : false,
     },

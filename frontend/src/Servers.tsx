@@ -1,14 +1,16 @@
 import './Servers.css'
-import { ReactElement, useState } from 'react'
+import { ReactElement, ReactNode, useEffect, useState } from 'react'
 import Menu from './Menu'
 import { GameInfo, ServerInfo } from './appstate'
-import { useServerInfos } from './hooks/query'
+import { useEnv, useServerInfos, useServers } from './hooks/query'
 import { openURL } from './api'
 import {
-  PiShieldStarFill as PublicServevrIcon,
   PiLockKeyOpenFill as PrivateServerIcon,
   PiArrowFatLinesRightFill as ConnectIcon,
+  PiArrowFatRight as RightArrow,
+  PiArrowFatDown as DownArrow,
 } from 'react-icons/pi'
+import Flag from 'react-world-flags'
 
 interface GameProps {
   p: GameInfo
@@ -27,47 +29,104 @@ function Game({ p: { iconURI, title }, onClick, subtitle }: GameProps) {
   )
 }
 
-function ServerListInfo({ p: { name, players, addr, restricted, ping } }: { p: ServerInfo }) {
+function ServerListInfo({ p, game }: { p: ServerInfo; game: GameInfo }) {
+  const [open, setOpen] = useState(false)
+
+  const details: [string, ReactNode][] = [
+    ['Name:', p.name],
+    [
+      'Address:',
+      <a
+        key={p.addr}
+        href={`steam://connect/${p.addr}`}
+        target="_blank"
+        rel="noreferrer"
+        onClick={() => openURL(`steam://connect/${p.addr}`)}
+      >
+        {p.addr}
+      </a>,
+    ],
+    ['Ping:', p.ping],
+    ['Country:', p.country],
+    ['Players:', `${p.players} / ${p.maxPlayers} (${p.bots} bots)`],
+    ['Game:', p.game],
+    ['Map:', p.map],
+    ['Protected:', p.restricted ? 'yes' : 'no'],
+  ]
+
   return (
-    <tr
-      className={`servers-info ${players > 0 ? '' : 'empty'} ${restricted ? 'restricted' : ''}`}
-      title={`${name} ${addr}`}
-    >
-      <td>
-        <span className="servers-info-icon">
-          {restricted ? <PrivateServerIcon /> : <PublicServevrIcon />}
-        </span>
-      </td>
-      <td className="servers-info-name-ctr">
-        <details>
-          <summary className="servers-info-name">{name}</summary>
-          <table>
-            <tbody>
-              <tr>
-                <td>Address:</td>
-                <td>{addr}</td>
-              </tr>
-            </tbody>
-          </table>
-        </details>
-      </td>
-      <td>
-        <span className="servers-info-players">{players}</span>
-      </td>
-      <td>
-        <span className="servers-info-ping">{ping}</span>
-      </td>
-      <td>
-        <button
-          className="servers-info-join button"
-          onClick={() => openURL(`steam://connect/${addr}`)}
-        >
-          <span>JOIN</span>
-          <ConnectIcon />
-        </button>
-      </td>
-    </tr>
+    <>
+      <tr
+        className={`servers-info ${p.players <= 0 ? 'empty' : ''} ${
+          p.restricted ? 'restricted' : ''
+        }`}
+        title={`${p.name} ${p.addr}`}
+      >
+        <td className="servers-info-image-ctr-ctr">
+          <div className="servers-info-image-ctr">
+            {p.restricted ? (
+              <PrivateServerIcon className="servers-info-icon" />
+            ) : (
+              <Flag className="servers-info-icon" code={p.country} />
+            )}
+            <img
+              className="servers-info-map-image"
+              alt=""
+              src={`${game.mapImageURL}&map=${p.map}`}
+            />
+          </div>
+        </td>
+        <td className="servers-info-name-ctr" onClick={() => setOpen(!open)}>
+          <span className="servers-info-name">
+            {p.name} {open ? <DownArrow /> : <RightArrow />}
+          </span>
+        </td>
+        <td>
+          <span className="servers-info-players">{p.players}</span>
+        </td>
+        <td>
+          <span className="servers-info-ping">{p.ping}</span>
+        </td>
+        <td>
+          <button
+            className="servers-info-join"
+            onClick={() => openURL(`steam://connect/${p.addr}`)}
+          >
+            <span>JOIN</span>
+            <ConnectIcon />
+          </button>
+        </td>
+      </tr>
+      {open ? (
+        <tr className="servers-info-details-ctr">
+          <td></td>
+          <td colSpan={4}>
+            <table className="servers-info-details">
+              <tbody>
+                {details.map(([k, v]) => (
+                  <tr key={k}>
+                    <td className="servers-info-details-name">{k}</td>
+                    <td className="servers-info-details-value">
+                      {typeof v === 'boolean' ? (v ? 'yes' : 'no') : v}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </td>
+        </tr>
+      ) : null}
+    </>
   )
+}
+
+type OrderBy = 'players'
+
+function orderBy(o: OrderBy): (a: ServerInfo, b: ServerInfo) => boolean {
+  switch (o) {
+    case 'players':
+      return ServerInfo.orderByPlayers
+  }
 }
 
 export interface ServerListProps {
@@ -78,13 +137,31 @@ export interface ServerListProps {
 }
 
 function ServerList({ gameID, gameIdx, games, onGameSelect }: ServerListProps) {
-  const servers = useServerInfos(gameID, 30000)
+  const [refresh, setRefresh] = useState(60000)
+  const [order, _serOrder] = useState<OrderBy>('players')
+  const addrs = useServers(gameID, refresh)
+  const servers = useServerInfos(addrs.type === 'ok' ? addrs.v : {}, refresh / 2, orderBy(order))
+  const env = useEnv()
+  useEffect(() => {
+    if (env.type !== 'ok' || !env.v.demo) {
+      return
+    }
+    const n = 3000
+    if (refresh !== n) {
+      setRefresh(n)
+    }
+  }, [refresh, env])
 
-  if (servers.type !== 'ok') {
-    return servers.alt
+  if (addrs.type !== 'ok') {
+    return addrs.alt
+  }
+  if (env.type !== 'ok') {
+    return env.alt
   }
 
-  const playerCount = servers.v.reduce((n, p) => n + p.players, 0)
+  const game = games[gameIdx]
+  const playerCount = servers.reduce((n, p) => n + p.players, 0)
+  const serverList = env.v.demo ? servers.filter((p) => !p.restricted) : servers
 
   return (
     <table className="servers-ctr">
@@ -96,7 +173,7 @@ function ServerList({ gameID, gameIdx, games, onGameSelect }: ServerListProps) {
                 games={games}
                 activeIdx={gameIdx}
                 onSelect={onGameSelect}
-                title={<span>Servers ({servers.v.length})</span>}
+                title={<span>Servers ({serverList.length})</span>}
               />
             </div>
           </th>
@@ -112,8 +189,8 @@ function ServerList({ gameID, gameIdx, games, onGameSelect }: ServerListProps) {
         </tr>
       </thead>
       <tbody>
-        {servers.v.map((p) => (
-          <ServerListInfo key={p.addr} p={p} />
+        {serverList.map((p) => (
+          <ServerListInfo key={p.addr} game={game} p={p} />
         ))}
       </tbody>
     </table>

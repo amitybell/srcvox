@@ -7,19 +7,31 @@ import (
 	"github.com/amitybell/srcvox/files"
 	"io/fs"
 	"path"
+	"sort"
 )
 
-var Sounds = func() []SoundInfo {
+var SoundsList, SoundsMap = func() ([]SoundInfo, map[string]SoundInfo) {
+	m := map[string]SoundInfo{}
+
 	fis, _ := fs.ReadDir(files.Sounds, "sounds")
-	lst := make([]SoundInfo, 0, len(fis))
 	for _, fi := range fis {
 		fn := fi.Name()
 		nm := fn[:len(fn)-len(path.Ext(fn))]
-		lst = append(lst, SoundInfo{
+		m[nm] = SoundInfo{
 			Name: nm,
-		})
+		}
 	}
-	return lst
+
+	for nm, _ := range Substites {
+		m[nm] = SoundInfo{Name: nm}
+	}
+
+	l := make([]SoundInfo, 0, len(m))
+	for _, si := range m {
+		l = append(l, si)
+	}
+	sort.Slice(l, func(i, j int) bool { return l[i].Name < l[j].Name })
+	return l, m
 }()
 
 type SoundInfo struct {
@@ -43,7 +55,11 @@ func LoadSound(name string) (*Audio, error) {
 	return readAudio(name, f)
 }
 
-func SoundOrTTS(tts *piper.TTS, username, text string) (au *Audio, err error) {
+func SoundOrTTS(tts *piper.TTS, state AppState, username, text string) (au *Audio, err error) {
+	if n := state.TextLimit; n > 0 && len(text) > n {
+		text = text[:n]
+	}
+
 	_, name := ClanName(username)
 	if name == "" {
 		name = username
@@ -64,5 +80,6 @@ func SoundOrTTS(tts *piper.TTS, username, text string) (au *Audio, err error) {
 	if err != nil {
 		return nil, fmt.Errorf("SoundOrTTS(`%s`): readAudio: %w", text, err)
 	}
+	au.TTS = true
 	return au, nil
 }

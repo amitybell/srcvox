@@ -1,11 +1,12 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/cockroachdb/pebble"
 	"time"
+
+	"github.com/cockroachdb/pebble"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 var (
@@ -29,9 +30,9 @@ func (db *DB) Put(k string, v any) error {
 		return fmt.Errorf("DB.Put(%s): %w", k, ErrNilDB)
 	}
 
-	s, err := json.Marshal(v)
+	s, err := msgpack.Marshal(v)
 	if err != nil {
-		return fmt.Errorf("DB.Put(%s): %w", k, err)
+		return fmt.Errorf("DB.Put(%s): Marshal: %w", k, err)
 	}
 	if err = db.pb.Set([]byte(k), s, pebble.Sync); err != nil {
 		return fmt.Errorf("DB.Put(%s): %w", k, err)
@@ -49,7 +50,11 @@ func (db *DB) Get(k string, outPtr any) error {
 		return fmt.Errorf("DB.Get(%s): %w", k, err)
 	}
 	defer c.Close()
-	return json.Unmarshal(s, outPtr)
+
+	if err := msgpack.Unmarshal(s, outPtr); err != nil {
+		return fmt.Errorf("DB.Get(%s): Unmarshal: %w", k, err)
+	}
+	return nil
 }
 
 func Put[T any](db *DB, k string, v T) error {
@@ -68,7 +73,7 @@ type CacheEntry[T any] struct {
 }
 
 func Cache[T any](db *DB, ttl time.Duration, k string, new func() (T, error)) (T, error) {
-	if ent, err := Get[CacheEntry[T]](db, k); err == nil && time.Since(ent.Ts) <= ttl {
+	if ent, err := Get[CacheEntry[T]](db, k); err == nil && (time.Since(ent.Ts) <= ttl || ttl < 0) {
 		return ent.V, nil
 	}
 
@@ -84,7 +89,10 @@ func Cache[T any](db *DB, ttl time.Duration, k string, new func() (T, error)) (T
 }
 
 func OpenDB(dir string) (*DB, error) {
-	pb, err := pebble.Open(dir, nil)
+	opts := &pebble.Options{
+		Logger: &pebbleLogger{},
+	}
+	pb, err := pebble.Open(dir, opts)
 	if err != nil {
 		return nil, fmt.Errorf("OpenDB(%s): %w", dir, err)
 	}

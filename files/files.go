@@ -16,4 +16,7 @@ var (
 
 	//go:embed emblem.png
 	EmblemPNG []byte
+
+	//go:embed demo/fpsdoug.jpg
+	DemoAvatar []byte
 )

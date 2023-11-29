@@ -24,6 +24,7 @@ type Audio struct {
 	Size   int
 	Dur    time.Duration
 	Format beep.Format
+	TTS    bool
 
 	mu     sync.Mutex
 	Stream beep.StreamSeeker
@@ -39,9 +40,13 @@ func (au *Audio) Encode(state AppState, w io.WriteSeeker, format beep.Format) (o
 		return 0, fmt.Errorf("Audio.Encode: audio seek: %w", err)
 	}
 
+	limit := state.AudioLimit
+	if au.TTS {
+		limit = 3 * time.Second
+	}
 	dur := au.Dur
-	if state.AudioLimit > 0 && dur > state.AudioLimit {
-		dur = state.AudioLimit
+	if limit > 0 && dur > limit {
+		dur = limit
 	}
 
 	var stream beep.Streamer = au.Stream

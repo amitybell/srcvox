@@ -5,28 +5,18 @@ import (
 )
 
 var (
-	DefaultAppState = AppState{
-		LastUpdate: time.Now(),
-		Sounds:     Sounds,
-		Presence:   Presence{Error: "..."},
-		Games:      GamesList,
-	}
+	DefaultAppState = AppState{}
 )
 
 type AppState struct {
-	LastUpdate time.Time   `json:"lastUpdate"`
-	Presence   Presence    `json:"presence"`
-	Sounds     []SoundInfo `json:"sounds"`
-	Games      []GameInfo  `json:"games"`
-	Error      AppError    `json:"error"`
+	LastUpdate time.Time `json:"lastUpdate"`
+	Presence   Presence  `json:"presence"`
+	Error      AppError  `json:"error"`
 
 	Config
 }
 
 func (s AppState) Merge(p AppState) (_ AppState, events []string) {
-	if p.Sounds != nil {
-		s.Sounds = p.Sounds
-	}
 	if p.Presence != (Presence{}) {
 		events = append(events, "sv.PresenceChange")
 		s.Presence = p.Presence

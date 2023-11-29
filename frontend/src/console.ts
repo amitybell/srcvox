@@ -7,6 +7,10 @@ function stringify(v: unknown): unknown {
   if (Array.isArray(v)) {
     return v.map(stringify)
   }
+  const o = v as { toLogString?: () => string }
+  if (o !== null && typeof o.toLogString === 'function') {
+    return o.toLogString()
+  }
   return JSON.stringify(v)
 }
 

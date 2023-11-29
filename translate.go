@@ -10,43 +10,62 @@ var (
 	Translations = map[string][]string{
 		"<3":  {"love"},
 		"i":   {"I"},
+		"im":  {"I'm"},
 		"sry": {"sorry"},
-		"bb":  {"bye", "bye bye", "see ya", "see you later"},
+		"bb":  {"bye"},
 		"brb": {"back", "I'll be right back"},
 		"gl":  {"good luck!"},
 		"bbq": {"barbeque"},
 		"hf":  {"have fun!"},
 		"kfc": {"KFC", "kfc"},
 		"np":  {"no problem", "no worries", "no problemo", "shit happens"},
-		"ns":  {"nice", "nice shot", "noice"},
+		"ns":  {"nice shot"},
 		"ko":  {"KO", "knock out"},
 		"wb":  {"welcome back"},
+		"icu": {"I see you!"},
+		"gg":  {"good game"},
+		"thx": {"thanks"},
 	}
 
 	Substites = map[string][]string{
-		"glhf":   {"good luck, have fun!"},
-		"gg":     {"GG", "good game", "game", "good", "nice game", "well played"},
-		"icu":    {"I see you!"},
-		"icq":    {"list", "look", "honey", "run2"},
-		"yw":     {"you're welcome!"},
-		"zombie": {"zombie", "drunken master"},
-		"hacker": {"hacker", "$name is the hacker!"},
-		"hack":   {"hack", "hack the planet!"},
-		"usure":  {"I'm sure"},
-		"boxxy":  {"boxxy", "iamboxxy"},
-		"baby":   {"corner"},
+		"ns":         {"nice", "nice shot", "noice", "goodjob"},
+		"bb":         {"bye1", "bye-ni1", "bye-ni2"},
+		"bye":        {"bye1", "bye-ni1", "bye-ni2"},
+		"glhf":       {"good luck, have fun!"},
+		"gg":         {"GG", "good game", "game", "good", "nice game", "well played"},
+		"icu":        {"I see you!", "iseeyou"},
+		"icq":        {"list", "look", "honey", "run2"},
+		"yw":         {"you're welcome!"},
+		"hacker":     {"hacker", "$name is the hacker!"},
+		"hack":       {"hack", "hack the planet!"},
+		"usure":      {"I'm sure"},
+		"boxxy":      {"boxxy", "iamboxxy"},
+		"baby":       {"corner"},
+		"lol":        {"haha", "lol"},
+		"ladydecade": {"ladydecade1", "ladydecade2", "ladydecade3", "ladydecade4"},
+		"zombie":     {"zombie1", "zombie2"},
+		"dust":       {"dust1", "dust2"},
+		"drunken":    {"drunken1", "drunken2", "drunken2", "drunken4", "drunken5", "drunken6", "drunken7"},
+		"run":        {"run1", "run2"},
+		"shit":       {"shit1", "shit2", "shit3"},
+		"THX":        {"THX"},
+		"thx":        {"thanks"},
+		"wololo":     {"wololo1", "wololo2"},
 	}
 )
 
 func Translate(name, text string) string {
-	text = strings.ToLower(strings.TrimSpace(text))
 	if v, ok := Substites[text]; ok {
 		text = randElem(v)
+	} else {
+		text = strings.ToLower(strings.TrimSpace(text))
+		if v, ok := Substites[text]; ok {
+			text = randElem(v)
+		}
 	}
 
 	out := strings.Fields(text)
 	for i, k := range out {
-		k := strings.ToLower(k)
 		switch k {
 		case "$name":
 			if name != "" {

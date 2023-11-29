@@ -1,0 +1,22 @@
+.modal {
+  width: 100vw;
+  height: 100vh;
+  overflow: auto;
+  color: var(--modal-fg);
+  background: var(--modal-bg);
+  border: 0;
+  border-radius: 0.5rem;
+
+  &::backdrop {
+    background-image: linear-gradient(to bottom, rgb(0 0 0 / 0.85), rgb(0 0 0 / 0.85));
+  }
+
+  & .modal-hdr {
+    margin-bottom: 1rem;
+    text-align: right;
+    & .modal-close-btn {
+      padding: 0.25rem;
+      font-size: 1.5rem;
+    }
+  }
+}

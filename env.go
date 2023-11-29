@@ -6,14 +6,16 @@ import (
 
 var (
 	Env = Environment{
-		StartMinimized: os.Getenv("StartMinimized") == "1",
-		FakeData:       os.Getenv("FakeData") == "1",
-		DefaultTab:     os.Getenv("DefaultTable"),
+		Minimized:  os.Getenv("Minimized") == "1",
+		Demo:       os.Getenv("Demo") == "1",
+		InitTab:    os.Getenv("InitTab"),
+		InitSbText: os.Getenv("InitSbText"),
 	}
 )
 
 type Environment struct {
-	StartMinimized bool   `json:"startMinimized"`
-	FakeData       bool   `json:"fakeData"`
-	DefaultTab     string `json:"defaultTab"`
+	Minimized  bool   `json:"minimized"`
+	Demo       bool   `json:"demo"`
+	InitTab    string `json:"initTab"`
+	InitSbText string `json:"initSbText"`
 }

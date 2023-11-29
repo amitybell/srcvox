@@ -31,6 +31,14 @@ export default function Credits() {
         </a>
       </p>
 
+      <h2>IP to country mapping</h2>
+      <p>
+        Server IP address to contry mapping is provided by{' '}
+        <a rel="noreferrer" target="_blank" href="https://www.maxmind.com/">
+          https://www.maxmind.com/
+        </a>
+      </p>
+
       <h2>Other Dependencies</h2>
       <p>See links below for the full list of dependencies:</p>
       <ul>

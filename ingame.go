@@ -12,7 +12,7 @@ type InGame struct {
 }
 
 func PlayersInGame(gameID uint64) InGame {
-	if Env.FakeData {
+	if Env.Demo {
 		return InGame{Count: randInt()}
 	}
 

@@ -4,13 +4,15 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/amitybell/memio"
 	"io"
 	"net"
 	"net/netip"
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/amitybell/ip2country"
+	"github.com/amitybell/memio"
 )
 
 const (
@@ -26,19 +28,56 @@ var (
 	ErrChallenge        = errors.New("Challenge")
 	ErrUnknownPrefix    = errors.New("Unknown Prefix")
 	ErrUnknownHeader    = errors.New("Unknown Header")
+
+	regions = []Region{
+		USEastCoast,
+		USWestCoast,
+		SouthAmerica,
+		Europe,
+		Asia,
+		Australia,
+		MiddleEast,
+		Africa,
+		RestOfTheworld,
+	}
 )
 
+type Region byte
+
 const (
-	USEastCoast    = 0x00
-	USWestCoast    = 0x01
-	SouthAmerica   = 0x02
-	Europe         = 0x03
-	Asia           = 0x04
-	Australia      = 0x05
-	MiddleEast     = 0x06
-	Africa         = 0x07
-	RestOfTheworld = 0xFF
+	USEastCoast    Region = 0x00
+	USWestCoast    Region = 0x01
+	SouthAmerica   Region = 0x02
+	Europe         Region = 0x03
+	Asia           Region = 0x04
+	Australia      Region = 0x05
+	MiddleEast     Region = 0x06
+	Africa         Region = 0x07
+	RestOfTheworld Region = 0xFF
 )
+
+func (r Region) String() string {
+	switch r {
+	case USEastCoast:
+		return "us-east"
+	case USWestCoast:
+		return "us-west"
+	case SouthAmerica:
+		return "south-america"
+	case Europe:
+		return "europe"
+	case Asia:
+		return "asia"
+	case Australia:
+		return "australia"
+	case MiddleEast:
+		return "middle-east"
+	case Africa:
+		return "africa"
+	default:
+		return "rest-of-world"
+	}
+}
 
 type ServerInfo struct {
 	Addr       string `json:"addr"`
@@ -47,11 +86,16 @@ type ServerInfo struct {
 	Bots       int    `json:"bots"`
 	Restricted bool   `json:"restricted"`
 	PingMs     int    `json:"ping"`
+	Map        string `json:"map"`
+	Game       string `json:"game"`
+	MaxPlayers int    `json:"maxPlayers"`
+	Region     Region `json:"region"`
+	Country    string `json:"country"`
 }
 
 type MasterQuery struct {
 	Header byte
-	Region byte
+	Region Region
 	Addr   string
 	Filter string
 
@@ -62,7 +106,7 @@ func (mq *MasterQuery) Encode(w io.Writer) error {
 	r := &mq.buf
 	r.Seek(0, 0)
 	r.WriteByte(mq.Header)
-	r.WriteByte(mq.Region)
+	r.WriteByte(byte(mq.Region))
 	r.WriteString(mq.Addr)
 	r.WriteByte(0)
 	r.WriteString(mq.Filter)
@@ -75,6 +119,8 @@ func (mq *MasterQuery) Encode(w io.Writer) error {
 type MasterReply struct {
 	ip   [4]byte
 	port uint16
+
+	Region Region
 }
 
 func (mr *MasterReply) Decode(r *memio.File) error {
@@ -125,7 +171,7 @@ func readMsgUDP(conn *net.UDPConn, buf *memio.File) error {
 	return nil
 }
 
-func queryRegionServerList(gameID uint64, region byte) ([]*MasterReply, error) {
+func queryRegionServerList(gameID uint64, region Region) ([]*MasterReply, error) {
 	conn, err := dialUDP(SourceMasterServerAddr)
 	if err != nil {
 		return nil, err
@@ -156,7 +202,7 @@ func queryRegionServerList(gameID uint64, region byte) ([]*MasterReply, error) {
 
 		var last *MasterReply
 		for {
-			reply := &MasterReply{}
+			reply := &MasterReply{Region: region}
 			if err := reply.Decode(buf); err != nil {
 				if errors.Is(err, io.EOF) {
 					break
@@ -182,17 +228,6 @@ func queryRegionServerList(gameID uint64, region byte) ([]*MasterReply, error) {
 }
 
 func queryServerList(gameID uint64) ([][]*MasterReply, error) {
-	regions := []byte{
-		USEastCoast,
-		USWestCoast,
-		SouthAmerica,
-		Europe,
-		Asia,
-		Australia,
-		MiddleEast,
-		Africa,
-		RestOfTheworld,
-	}
 	replies := make([][]*MasterReply, len(regions))
 
 	wg := sync.WaitGroup{}
@@ -208,24 +243,22 @@ func queryServerList(gameID uint64) ([][]*MasterReply, error) {
 	return replies, nil
 }
 
-func serverList(db *DB, gameID uint64) ([]string, error) {
-	key := fmt.Sprintf("/serverList/%d", gameID)
-	return Cache(db, serverListCacheMaxAge, key, func() ([]string, error) {
+func serverList(db *DB, gameID uint64) (map[string]Region, error) {
+	maxAge := serverListCacheMaxAge
+	if Env.Demo {
+		maxAge = -1
+	}
+	key := fmt.Sprintf("/serverList/addr-region/%d", gameID)
+	return Cache(db, maxAge, key, func() (map[string]Region, error) {
 		replies, err := queryServerList(gameID)
 		if err != nil {
 			return nil, fmt.Errorf("serverList: %s", err)
 		}
 
-		seen := map[string]bool{}
-		var addrs []string
+		addrs := map[string]Region{}
 		for _, l := range replies {
 			for _, r := range l {
-				addr := r.String()
-				if seen[addr] {
-					continue
-				}
-				seen[addr] = true
-				addrs = append(addrs, addr)
+				addrs[r.String()] = r.Region
 			}
 		}
 		if len(addrs) == 0 {
@@ -434,7 +467,7 @@ func queryConn(conn *net.UDPConn, query interface{ Encode(io.Writer) error }, bu
 	return time.Since(pingStart), nil
 }
 
-func queryServerInfo(addr string) (_r *ServerReply, _err error) {
+func queryServerInfo(region Region, addr string) (_r *ServerReply, _err error) {
 	conn, err := dialUDP(addr)
 	if err != nil {
 		return nil, fmt.Errorf("queryServerInfo(%s): %w", addr, err)
@@ -460,11 +493,40 @@ func queryServerInfo(addr string) (_r *ServerReply, _err error) {
 	}
 }
 
-func serverInfo(db *DB, addr string) (*ServerReply, error) {
-	key := "/serverInfo/" + addr
-	return Cache(db, serverInfoCacheMaxAge, key, func() (*ServerReply, error) {
-		return queryServerInfo(addr)
+func serverInfo(db *DB, region Region, addr string) (ServerInfo, *ServerReply, error) {
+	maxAge := serverInfoCacheMaxAge
+	if Env.Demo {
+		maxAge = -1
+	}
+
+	key := fmt.Sprintf("/serverInfo/%d/%s", region, addr)
+	rep, err := Cache(db, maxAge, key, func() (*ServerReply, error) {
+		return queryServerInfo(region, addr)
 	})
+	if err != nil {
+		return ServerInfo{}, nil, err
+	}
+	ip, _, _ := net.SplitHostPort(addr)
+	cc, _ := ip2country.LookupString(ip)
+	inf := ServerInfo{
+		Addr:       addr,
+		Name:       rep.Name,
+		Players:    int(rep.Players),
+		Bots:       int(rep.Bots),
+		Restricted: rep.Visibility != 0,
+		PingMs:     int(rep.Ping / time.Millisecond),
+		Map:        rep.Map,
+		Game:       rep.Game,
+		MaxPlayers: int(rep.MaxPlayers),
+		Region:     region,
+		Country:    cc,
+	}
+	if Env.Demo {
+		m := 32
+		n := m - randIntn(5)
+		inf.Players = randIntRange(n, m)
+	}
+	return inf, rep, nil
 }
 
 func ServerInfos(db *DB, gameID uint64) ([]ServerInfo, error) {
@@ -474,9 +536,13 @@ func ServerInfos(db *DB, gameID uint64) ([]ServerInfo, error) {
 		return nil, fmt.Errorf("ServerInfos: %w", err)
 	}
 
-	queue := make(chan string, len(addrs))
-	for _, s := range addrs {
-		queue <- s
+	type srvInfo struct {
+		Region Region
+		Addr   string
+	}
+	queue := make(chan srvInfo, len(addrs))
+	for a, r := range addrs {
+		queue <- srvInfo{Region: r, Addr: a}
 	}
 	close(queue)
 
@@ -487,19 +553,12 @@ func ServerInfos(db *DB, gameID uint64) ([]ServerInfo, error) {
 		go func() {
 			defer workers.Done()
 
-			for addr := range queue {
-				inf, err := serverInfo(db, addr)
+			for si := range queue {
+				inf, _, err := serverInfo(db, si.Region, si.Addr)
 				if err != nil {
 					continue
 				}
-				results <- ServerInfo{
-					Addr:       addr,
-					Name:       inf.Name,
-					Players:    int(inf.Players),
-					Bots:       int(inf.Bots),
-					Restricted: inf.Visibility != 0,
-					PingMs:     int(inf.Ping / time.Millisecond),
-				}
+				results <- inf
 			}
 		}()
 	}

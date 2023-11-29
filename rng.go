@@ -4,14 +4,25 @@ import (
 	"lukechampine.com/frand"
 )
 
-func randBool() bool {
-	return frand.Intn(1<<10)&1 == 1
+func randIntn(n int) int {
+	return int(frand.Intn(n))
 }
 
 func randInt() int {
-	return int(frand.Intn(1<<32 - 1))
+	return randIntn(1<<32 - 1)
+}
+
+func randBool() bool {
+	return randInt()&1 == 1
+}
+
+func randIntRange(n, m int) int {
+	if m <= n {
+		return m
+	}
+	return n + randIntn(m-n)
 }
 
 func randElem[T any](s []T) T {
-	return s[frand.Intn(len(s))]
+	return s[randIntn(len(s))]
 }

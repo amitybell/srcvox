@@ -1,5 +1,7 @@
 import { main } from '../wailsjs/go/models'
 
+export type Region = number
+
 export class ServerInfo implements main.ServerInfo {
   addr: string
   name: string
@@ -7,6 +9,13 @@ export class ServerInfo implements main.ServerInfo {
   bots: number
   restricted: boolean
   ping: number
+  map: string
+  game: string
+  maxPlayers: number
+  region: number
+  country: string
+
+  sortName: string
 
   constructor(source?: unknown) {
     const p = sourceObject(source)
@@ -16,30 +25,45 @@ export class ServerInfo implements main.ServerInfo {
     this.bots = coerce(0, p.bots)
     this.restricted = coerce(false, p.restricted)
     this.ping = coerce(0, p.ping)
+    this.map = coerce('', p.map)
+    this.game = coerce('', p.game)
+    this.maxPlayers = coerce(0, p.maxPlayers)
+    this.region = coerce(0xff, p.region)
+    this.country = coerce('', p.country)
+    this.sortName =
+      // remove prefixes [abc] | (abc) | \W+
+      naturallySortable(
+        this.name.replace(/^(?:\[[^\]]+\]|\([^)]+\)|[^[\]()\w]+)+/, '') || this.name,
+      )
   }
 
-  equal(that: ServerInfo) {
-    return (
-      this.addr === that.addr &&
-      this.name === that.name &&
-      this.players === that.players &&
-      this.bots === that.bots &&
-      this.restricted === that.restricted &&
-      this.ping === that.ping
-    )
+  less(that: ServerInfo): boolean {
+    return this.sortName < that.sortName
+  }
+
+  static orderByPlayers(a: ServerInfo, b: ServerInfo): boolean {
+    if (a.players !== b.players) {
+      return b.players < a.players
+    }
+    if (a.restricted || b.restricted) {
+      return !a.restricted
+    }
+    return a.sortName < b.sortName
   }
 }
 
 export class Environment implements main.Environment {
-  startMinimized: boolean
-  fakeData: boolean
-  defaultTab: string
+  minimized: boolean
+  demo: boolean
+  initTab: string
+  initSbText: string
 
   constructor(source?: unknown) {
     const p = sourceObject(source)
-    this.startMinimized = coerce(false, p.startMinimized)
-    this.fakeData = coerce(false, p.fakeData)
-    this.defaultTab = coerce('', p.defaultTab)
+    this.minimized = coerce(false, p.minimized)
+    this.demo = coerce(false, p.demo)
+    this.initTab = coerce('', p.initTab)
+    this.initSbText = coerce('', p.initSbText)
   }
 }
 
@@ -52,10 +76,6 @@ export class InGame implements main.InGame {
     this.error = coerce('', p.error)
     this.count = coerce(0, p.count)
   }
-
-  equal(that: InGame): boolean {
-    return this.error === that.error && this.count === that.count
-  }
 }
 
 export class AppError implements main.AppError {
@@ -63,13 +83,25 @@ export class AppError implements main.AppError {
   message: string
 
   constructor(source?: unknown) {
+    if (typeof source === 'string' || source instanceof Error) {
+      this.fatal = false
+      this.message = `${source}`
+      return
+    }
     const p = sourceObject(source)
     this.fatal = coerce(false, p.fatal)
     this.message = coerce('', p.message)
   }
 
-  equal(that: AppError): boolean {
-    return this.fatal === that.fatal && this.message === that.message
+  toString(): string {
+    if (this.fatal) {
+      return `Fatal Error: ${this.message}`
+    }
+    return `Error: ${this.message}`
+  }
+
+  toLogString(): string {
+    return this.toString()
   }
 }
 
@@ -79,6 +111,8 @@ export class GameInfo implements main.GameInfo {
   dirName: string
   iconURI: string
   heroURI: string
+  bgVideoURL: string
+  mapImageURL: string
 
   constructor(source?: unknown) {
     const p = sourceObject(source)
@@ -87,36 +121,47 @@ export class GameInfo implements main.GameInfo {
     this.dirName = coerce('', p.dirName)
     this.iconURI = coerce('', p.iconURI)
     this.heroURI = coerce('', p.heroURI)
-  }
-
-  equal(that: GameInfo): boolean {
-    return (
-      this.id === that.id &&
-      this.title === that.title &&
-      this.dirName === that.dirName &&
-      this.iconURI === that.iconURI &&
-      this.heroURI === that.heroURI
-    )
+    this.bgVideoURL = coerce('', p.bgVideoURL)
+    this.mapImageURL = coerce('', p.mapImageURL)
   }
 }
 
 export class SoundInfo implements main.SoundInfo {
   name: string
+  sortName: string
 
   constructor(source?: unknown) {
     const p = sourceObject(source)
     this.name = coerce('', p.name)
+    this.sortName = this.name.toLocaleLowerCase()
   }
 
-  equal(that: SoundInfo): boolean {
-    return this.name === that.name
+  less(that: SoundInfo): boolean {
+    return this.sortName < that.sortName
+  }
+
+  lessPat(that: SoundInfo, pat: string): boolean {
+    if (this.sortName === pat.toLowerCase()) {
+      return true
+    }
+    if (this.sortName.startsWith(pat)) {
+      if (that.sortName.startsWith(pat)) {
+        return this.sortName < that.sortName
+      }
+      return true
+    }
+    if (that.sortName.startsWith(pat)) {
+      return false
+    }
+    return this.sortName < that.sortName
   }
 }
 
-export class Presence implements main.Presence {
-  ok: boolean
+export class Presence implements Omit<main.Presence, 'convertValues'> {
+  inGame: boolean
   error: string
   userID: number
+  avatarURL: string
   gameID: number
   gameDir: string
   gameIconURI: string
@@ -124,12 +169,15 @@ export class Presence implements main.Presence {
   username: string
   clan: string
   name: string
+  humans: string[]
+  bots: string[]
 
   constructor(source?: unknown) {
     const p = sourceObject(source)
-    this.ok = coerce(false, p.ok)
+    this.inGame = coerce(false, p.inGame)
     this.error = coerce('', p.error)
     this.userID = coerce(0, p.userID)
+    this.avatarURL = coerce('', p.avatarURL)
     this.gameID = coerce(0, p.gameID)
     this.gameIconURI = coerce('', p.gameIconURI)
     this.gameHeroURI = coerce('', p.gameHeroURI)
@@ -137,123 +185,41 @@ export class Presence implements main.Presence {
     this.username = coerce('', p.username)
     this.clan = coerce('', p.clan)
     this.name = coerce('', p.name)
-  }
-
-  equal(that: Presence): boolean {
-    return (
-      this.ok === that.ok &&
-      this.error === that.error &&
-      this.userID === that.userID &&
-      this.gameID === that.gameID &&
-      this.gameDir === that.gameDir &&
-      this.gameIconURI === that.gameIconURI &&
-      this.gameHeroURI === that.gameHeroURI &&
-      this.username === that.username &&
-      this.clan === that.clan &&
-      this.name === that.name
-    )
+    this.humans = coerce([], p.humans)
+    this.bots = coerce([], p.bots)
   }
 }
 
-export class AppState implements Omit<main.AppState, 'convertValues'> {
+export class AppState implements Omit<main.AppState, 'convertValues' | 'presence'> {
   lastUpdate: string
+  addr: string
   presence: Presence
-  games: GameInfo[]
-  sounds: SoundInfo[]
-  username: string
-  clan: string
-  name: string
   error: AppError
-  inGame: InGame
   tnetPort: number
   audioDelay: number
   audioLimit: number
+  audioLimitTTS: number
+  textLimit: number
   includeUsernames: { [key: string]: boolean }
   excludeUsernames: { [key: string]: boolean }
+  hosts: { [key: string]: boolean }
+  firstVoice: string
 
   constructor(source?: unknown) {
     const p = sourceObject(source)
     this.lastUpdate = coerce('', p.lastUpdate)
+    this.addr = coerce('', p.addr)
     this.presence = new Presence(p.presence)
-    this.games = coerce([], p.games).map((p) => new GameInfo(p))
-    this.sounds = coerce([], p.sounds).map((p) => new SoundInfo(p))
-    this.username = coerce('', p.username)
-    this.clan = coerce('', p.clan)
-    this.name = coerce('', p.name)
     this.error = new AppError(p.error)
-    this.inGame = new InGame(p.inGame)
     this.tnetPort = coerce(0, p.tnetPort)
     this.audioDelay = coerce(0, p.audioDelay)
     this.audioLimit = coerce(0, p.audioLimit)
+    this.audioLimitTTS = coerce(0, p.audioLimitTTS)
+    this.textLimit = coerce(0, p.textLimit)
     this.includeUsernames = coerce({}, p.includeUsernames)
     this.excludeUsernames = coerce({}, p.excludeUsernames)
-  }
-
-  equal(that: AppState): boolean {
-    return (
-      eqScalar(this.lastUpdate, that.lastUpdate) &&
-      eqObject(this.presence, that.presence) &&
-      eqArray(this.games, that.games) &&
-      eqArray(this.sounds, that.sounds) &&
-      eqScalar(this.username, that.username) &&
-      eqScalar(this.clan, that.clan) &&
-      eqScalar(this.name, that.name) &&
-      eqObject(this.error, that.error) &&
-      eqObject(this.inGame, that.inGame) &&
-      eqScalar(this.tnetPort, that.tnetPort) &&
-      eqScalar(this.audioDelay, that.audioDelay) &&
-      eqScalar(this.audioLimit, that.audioLimit) &&
-      eqRecord(this.includeUsernames, that.includeUsernames) &&
-      eqRecord(this.excludeUsernames, that.excludeUsernames)
-    )
-  }
-
-  merge(source: unknown): AppState {
-    const p = this
-    const q = new AppState(source)
-    if (eqScalar(p.lastUpdate, q.lastUpdate)) {
-      q.lastUpdate = p.lastUpdate
-    }
-    if (eqObject(p.presence, q.presence)) {
-      q.presence = p.presence
-    }
-    if (eqArray(p.games, q.games)) {
-      q.games = p.games
-    }
-    if (eqScalar(p.username, q.username)) {
-      q.username = p.username
-    }
-    if (eqScalar(p.clan, q.clan)) {
-      q.clan = p.clan
-    }
-    if (eqScalar(p.name, q.name)) {
-      q.name = p.name
-    }
-    if (eqObject(p.error, q.error)) {
-      q.error = p.error
-    }
-    if (eqObject(p.inGame, q.inGame)) {
-      q.inGame = p.inGame
-    }
-    if (eqScalar(p.tnetPort, q.tnetPort)) {
-      q.tnetPort = p.tnetPort
-    }
-    if (eqScalar(p.audioDelay, q.audioDelay)) {
-      q.audioDelay = p.audioDelay
-    }
-    if (eqScalar(p.audioLimit, q.audioLimit)) {
-      q.audioLimit = p.audioLimit
-    }
-    if (eqRecord(p.includeUsernames, q.includeUsernames)) {
-      q.includeUsernames = p.includeUsernames
-    }
-    if (eqRecord(p.excludeUsernames, q.excludeUsernames)) {
-      q.excludeUsernames = p.excludeUsernames
-    }
-    if (p.equal(q)) {
-      return p
-    }
-    return q
+    this.hosts = coerce({}, p.hosts)
+    this.firstVoice = coerce('', p.firstVoice)
   }
 }
 
@@ -286,38 +252,31 @@ function sourceObject(source: unknown): Record<string, unknown> {
   return {}
 }
 
-function eqScalar<T extends string | boolean | number>(p: T, q: T): boolean {
-  return p === q
+function naturallySortable(s: string): string {
+  // convert numbers to 00xy so 10 sorts _natural_ly after 2
+  return s.toLocaleLowerCase().replaceAll(/([\d.]+)/g, (_, m) => {
+    if (typeof m !== 'string') {
+      return m
+    }
+    if (m.includes('.')) {
+      return m
+    }
+    return parseInt(m).toString().padStart(4, '0')
+  })
 }
 
-function eqArray<T extends { equal: (that: T) => boolean }>(p: T[], q: T[]): boolean {
-  if (p === q) {
-    return true
-  }
-  if (p.length !== q.length) {
-    return false
-  }
-  return p.every((v, i) => v.equal(q[i]))
+export interface Lesser<T> {
+  less: (that: T) => boolean
 }
 
-function eqObject<T extends { equal: (that: T) => boolean }>(p: T, q: T): boolean {
-  if (p === q) {
-    return true
-  }
-  return p.equal(q)
+export interface LesserPat<T> {
+  lessPat: (that: T, pat: string) => boolean
 }
 
-function eqRecord<T extends Record<string, U>, U extends boolean | string | number>(
-  p: T,
-  q: T,
-): boolean {
-  if (p === q) {
-    return true
-  }
-  const pKeys = Object.keys(p)
-  const qKeys = Object.keys(q)
-  if (pKeys.length !== qKeys.length) {
-    return false
-  }
-  return pKeys.every((k) => p[k] === q[k])
+export function cmpLess<T extends Lesser<T>>(a: T, b: T): number {
+  return a.less(b) ? -1 : 1
+}
+
+export function cmpLessPat<T extends LesserPat<T>>(pat: string): (a: T, b: T) => number {
+  return (a, b) => (a.lessPat(b, pat) ? -1 : 1)
 }
