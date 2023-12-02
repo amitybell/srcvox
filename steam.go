@@ -2,22 +2,45 @@ package main
 
 import (
 	"fmt"
-	"github.com/andygrunwald/vdf"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
+	"time"
+
+	"github.com/andygrunwald/vdf"
 )
 
 type SteamUser struct {
 	ID        uint64
 	Name      string
 	AvatarURL string
+	Ts        time.Time
+
+	lib *LibFS `msgpack:"-"`
+}
+
+func (su *SteamUser) String() string {
+	return fmt.Sprintf("%s#%d", su.Name, su.ID)
+}
+
+func (su *SteamUser) Lib() *LibFS {
+	return su.lib
 }
 
 type LibFS struct {
 	Dir string
-	fs.FS
+
+	fs fs.FS
+}
+
+func (lfs *LibFS) Open(name string) (fs.File, error) {
+	return lfs.fs.Open(name)
+}
+
+func NewLibFS(dir string) *LibFS {
+	return &LibFS{Dir: dir, fs: os.DirFS(dir)}
 }
 
 func findSteamPaths(rel ...string) []string {
@@ -79,68 +102,92 @@ func findSteamLibs() []*LibFS {
 			}
 
 			seen[dir] = true
-			libs = append(libs, &LibFS{Dir: dir, FS: os.DirFS(dir)})
+			libs = append(libs, NewLibFS(dir))
 		}
 	}
 	return libs
 }
 
-func readUserAccount(lib *LibFS) (*SteamUser, error) {
+func readLoginUsers(db *DB, lib *LibFS) ([]*SteamUser, error) {
 	rc, err := lib.Open("config/loginusers.vdf")
 	if err != nil {
 		return nil, err
 	}
 	defer rc.Close()
 
-	data, err := vdf.NewParser(rc).Parse()
-	if err != nil {
-		return nil, err
-	}
+	users, err := CacheStat(db, rc, "/readLoginUsers/"+lib.Dir, 1, func() (accs []*SteamUser, _ error) {
+		data, err := vdf.NewParser(rc).Parse()
+		if err != nil {
+			return nil, err
+		}
 
-	users, ok := data["users"].(map[string]any)
-	if !ok {
-		return nil, fs.ErrNotExist
-	}
-
-	for k, v := range users {
-		m, ok := v.(map[string]any)
+		users, ok := data["users"].(map[string]any)
 		if !ok {
-			continue
+			return nil, fs.ErrNotExist
 		}
 
-		name, ok := m["PersonaName"].(string)
-		if !ok {
-			continue
-		}
+		for k, v := range users {
+			id, err := strconv.ParseUint(k, 10, 64)
+			if err != nil || id == 0 {
+				continue
+			}
 
-		id, err := strconv.ParseUint(k, 10, 64)
-		if err != nil || id == 0 {
-			continue
-		}
+			m, ok := v.(map[string]any)
+			if !ok {
+				continue
+			}
 
-		usr := &SteamUser{ID: id, Name: name}
-		if Env.Demo {
-			usr.Name = DemoUsername
+			name, ok := m["PersonaName"].(string)
+			if !ok {
+				continue
+			}
+
+			s, ok := m["Timestamp"].(string)
+			if !ok {
+				continue
+			}
+			ts, err := strconv.ParseInt(s, 10, 64)
+			if err != nil || id == 0 {
+				continue
+			}
+
+			accs = append(accs, &SteamUser{
+				ID:   id,
+				Name: name,
+				Ts:   time.Unix(ts, 0),
+				lib:  lib,
+			})
 		}
-		return usr, nil
+		return accs, nil
+	})
+	for i, _ := range users {
+		users[i].lib = lib
 	}
-	return nil, fs.ErrNotExist
+	return users, err
 }
 
-func findSteamUser() (*SteamUser, *LibFS, bool) {
+func findSteamUser(db *DB) (*SteamUser, bool) {
+	var users []*SteamUser
 	for _, lib := range findSteamLibs() {
-		usr, err := readUserAccount(lib)
-		if err == nil {
-			return usr, lib, true
-		}
+		accs, _ := readLoginUsers(db, lib)
+		users = append(users, accs...)
 	}
-	return nil, nil, false
+
+	if len(users) == 0 {
+		return nil, false
+	}
+
+	sort.Slice(users, func(i, j int) bool {
+		return users[j].Ts.Before(users[i].Ts)
+	})
+
+	return users[0], true
 }
 
-func openUserAvatar() (fs.File, error) {
-	usr, lib, ok := findSteamUser()
+func openUserAvatar(db *DB) (fs.File, error) {
+	usr, ok := findSteamUser(db)
 	if !ok {
 		return nil, fs.ErrNotExist
 	}
-	return lib.Open(fmt.Sprintf("config/avatarcache/%d.png", usr.ID))
+	return usr.Lib().Open(fmt.Sprintf("config/avatarcache/%d.png", usr.ID))
 }

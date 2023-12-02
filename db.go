@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"time"
 
 	"github.com/cockroachdb/pebble"
@@ -68,12 +69,21 @@ func Get[T any](db *DB, k string) (T, error) {
 }
 
 type CacheEntry[T any] struct {
-	Ts time.Time
-	V  T
+	Ts  time.Time
+	Ver int
+	V   T
 }
 
-func Cache[T any](db *DB, ttl time.Duration, k string, new func() (T, error)) (T, error) {
-	if ent, err := Get[CacheEntry[T]](db, k); err == nil && (time.Since(ent.Ts) <= ttl || ttl < 0) {
+func (ent CacheEntry[T]) CheckTTL(ttl time.Duration, ver int) bool {
+	return ent.Ver == ver && (ttl < 0 || time.Since(ent.Ts) <= ttl)
+}
+
+func (ent CacheEntry[T]) CheckMtime(mtime time.Time, ver int) bool {
+	return ent.Ver == ver && ent.Ts.Equal(mtime)
+}
+
+func CacheTTL[T any](db *DB, ttl time.Duration, k string, ver int, new func() (T, error)) (T, error) {
+	if ent, err := Get[CacheEntry[T]](db, k); err == nil && ent.CheckTTL(ttl, ver) {
 		return ent.V, nil
 	}
 
@@ -83,7 +93,28 @@ func Cache[T any](db *DB, ttl time.Duration, k string, new func() (T, error)) (T
 	}
 
 	// it's just a cache; it's fine if it fails
-	_ = Put(db, k, CacheEntry[T]{Ts: time.Now(), V: v})
+	_ = Put(db, k, CacheEntry[T]{Ts: time.Now().UTC(), V: v, Ver: ver})
+
+	return v, nil
+}
+
+func CacheStat[T any](db *DB, f interface{ Stat() (fs.FileInfo, error) }, k string, ver int, new func() (T, error)) (T, error) {
+	var mtime time.Time
+	if fi, err := f.Stat(); err == nil {
+		mtime = fi.ModTime().UTC()
+	}
+
+	if ent, err := Get[CacheEntry[T]](db, k); err == nil && ent.CheckMtime(mtime, ver) {
+		return ent.V, nil
+	}
+
+	v, err := new()
+	if err != nil {
+		return v, fmt.Errorf("StatCache: %w", err)
+	}
+
+	// it's just a cache; it's fine if it fails
+	_ = Put(db, k, CacheEntry[T]{Ts: mtime, V: v, Ver: ver})
 
 	return v, nil
 }

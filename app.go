@@ -263,7 +263,7 @@ func (app *App) initPiper(firstVoice string) error {
 }
 
 func (app *App) initPresence() {
-	usr, _, ok := findSteamUser()
+	usr, ok := findSteamUser(app.DB)
 	if !ok {
 		return
 	}
@@ -396,7 +396,7 @@ func (app *App) serveAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f, err := openUserAvatar()
+	f, err := openUserAvatar(app.DB)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return

@@ -249,7 +249,7 @@ func serverList(db *DB, gameID uint64) (map[string]Region, error) {
 		maxAge = -1
 	}
 	key := fmt.Sprintf("/serverList/addr-region/%d", gameID)
-	return Cache(db, maxAge, key, func() (map[string]Region, error) {
+	return CacheTTL(db, maxAge, key, 1, func() (map[string]Region, error) {
 		replies, err := queryServerList(gameID)
 		if err != nil {
 			return nil, fmt.Errorf("serverList: %s", err)
@@ -499,8 +499,8 @@ func serverInfo(db *DB, region Region, addr string) (ServerInfo, *ServerReply, e
 		maxAge = -1
 	}
 
-	key := fmt.Sprintf("/serverInfo/%d/%s", region, addr)
-	rep, err := Cache(db, maxAge, key, func() (*ServerReply, error) {
+	key := fmt.Sprintf("/serverInfo/%s", addr)
+	rep, err := CacheTTL(db, maxAge, key, 1, func() (*ServerReply, error) {
 		return queryServerInfo(region, addr)
 	})
 	if err != nil {
