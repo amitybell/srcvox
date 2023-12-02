@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -233,6 +235,14 @@ func (app *App) initWinConf(ctx context.Context) {
 	}
 }
 
+func (app *App) initWatch() {
+	WatchNotify(func(ev WatchEvent) {
+		if filepath.Base(ev.Name) == "loginusers.vdf" {
+			app.initPresence()
+		}
+	})
+}
+
 func (app *App) initDB() error {
 	var err error
 	app.DB, err = OpenDB(app.Paths.DBDir)
@@ -263,7 +273,7 @@ func (app *App) initPiper(firstVoice string) error {
 }
 
 func (app *App) initPresence() {
-	usr, ok := findSteamUser(app.DB)
+	usr, ok := findSteamUser(app.DB, 0)
 	if !ok {
 		return
 	}
@@ -273,7 +283,7 @@ func (app *App) initPresence() {
 		p.UserID = usr.ID
 		p.Username = usr.Name
 		p.Clan, p.Name = ClanName(usr.Name)
-		p.AvatarURL, _ = app.serverURL("/app.avatar", nil)
+		p.AvatarURL, _ = app.serverURL("/app.avatar", url.Values{"id": {strconv.FormatUint(usr.ID, 10)}})
 		s.Presence = p
 		return s
 	})
@@ -311,6 +321,7 @@ func (app *App) onStartup(ctx context.Context) {
 		return
 	}
 
+	app.initWatch()
 	app.initServer()
 
 	go tnet(app)
@@ -396,7 +407,8 @@ func (app *App) serveAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f, err := openUserAvatar(app.DB)
+	id, _ := strconv.ParseUint(r.URL.Query().Get("id"), 10, 64)
+	f, err := openUserAvatar(app.DB, id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return

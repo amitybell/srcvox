@@ -4,6 +4,11 @@ import (
 	"time"
 )
 
+const (
+	SvPresenceChangeEvent = "sv.PresenceChange"
+	SvErrorChangeEvent    = "sv.ErrorChange"
+)
+
 var (
 	DefaultAppState = AppState{}
 )
@@ -17,12 +22,12 @@ type AppState struct {
 }
 
 func (s AppState) Merge(p AppState) (_ AppState, events []string) {
-	if p.Presence != (Presence{}) {
-		events = append(events, "sv.PresenceChange")
+	if p.Presence != (Presence{}) && p.Presence != s.Presence {
+		events = append(events, SvPresenceChangeEvent)
 		s.Presence = p.Presence
 	}
-	if p.Error != (AppError{}) {
-		events = append(events, "sv.ErrorChange")
+	if p.Error != (AppError{}) && p.Error != s.Error {
+		events = append(events, SvErrorChangeEvent)
 		s.Error = p.Error
 	}
 	s.Config = s.Config.Merge(p.Config)

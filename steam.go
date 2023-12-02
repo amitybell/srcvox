@@ -1,15 +1,29 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/andygrunwald/vdf"
+	"github.com/fsnotify/fsnotify"
+)
+
+var (
+	_ fs.FS     = (*LibFS)(nil)
+	_ fs.StatFS = (*LibFS)(nil)
+
+	libFSs = struct {
+		sync.Mutex
+		m map[string]*LibFS
+	}{
+		m: map[string]*LibFS{},
+	}
 )
 
 type SteamUser struct {
@@ -30,17 +44,70 @@ func (su *SteamUser) Lib() *LibFS {
 }
 
 type LibFS struct {
-	Dir string
+	Dir       string
+	ConfigDir string
 
 	fs fs.FS
 }
 
-func (lfs *LibFS) Open(name string) (fs.File, error) {
-	return lfs.fs.Open(name)
+func (lib *LibFS) Open(name string) (fs.File, error) {
+	return lib.fs.Open(name)
+}
+
+func (lib *LibFS) Stat(name string) (fs.FileInfo, error) {
+	if sfs, ok := lib.fs.(fs.StatFS); ok {
+		return sfs.Stat(name)
+	}
+	return os.Stat(filepath.Join(lib.Dir, filepath.FromSlash(name)))
+}
+
+func (lib *LibFS) Mtime(name string) (time.Time, error) {
+	fi, err := lib.Stat(name)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return fi.ModTime(), nil
+}
+
+func (lib *LibFS) watchEv(ev WatchEvent) {
+	if ev.Name == lib.ConfigDir && ev.Op&(fsnotify.Create|fsnotify.Rename) != 0 {
+		Watch(lib.ConfigDir)
+	}
+}
+
+func (lib *LibFS) watch() {
+	WatchNotify(lib.watchEv)
+
+	if err := Watch(lib.Dir); err != nil {
+		Logs.Printf("Cannot watch: `%s`: %s", lib.Dir, err)
+		return
+	}
+
+	if err := Watch(lib.ConfigDir); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		Logs.Printf("Cannot watch: `%s`: %s", lib.ConfigDir, err)
+	}
 }
 
 func NewLibFS(dir string) *LibFS {
-	return &LibFS{Dir: dir, fs: os.DirFS(dir)}
+	dir = filepath.Clean(dir)
+
+	libFSs.Lock()
+	defer libFSs.Unlock()
+
+	if lib, ok := libFSs.m[dir]; ok {
+		return lib
+	}
+
+	lib := &LibFS{
+		Dir:       dir,
+		ConfigDir: filepath.Join(dir, "config"),
+		fs:        os.DirFS(dir),
+	}
+	libFSs.m[dir] = lib
+
+	go lib.watch()
+
+	return lib
 }
 
 func findSteamPaths(rel ...string) []string {
@@ -109,13 +176,16 @@ func findSteamLibs() []*LibFS {
 }
 
 func readLoginUsers(db *DB, lib *LibFS) ([]*SteamUser, error) {
-	rc, err := lib.Open("config/loginusers.vdf")
-	if err != nil {
-		return nil, err
-	}
-	defer rc.Close()
+	pth := "config/loginusers.vdf"
+	key := "/readLoginUsers/" + lib.Dir + "/" + pth
+	mtime, _ := lib.Mtime(pth)
+	users, err := CacheMtime(db, mtime, key, 1, func() (accs []*SteamUser, _ error) {
+		rc, err := lib.Open(pth)
+		if err != nil {
+			return nil, err
+		}
+		defer rc.Close()
 
-	users, err := CacheStat(db, rc, "/readLoginUsers/"+lib.Dir, 1, func() (accs []*SteamUser, _ error) {
 		data, err := vdf.NewParser(rc).Parse()
 		if err != nil {
 			return nil, err
@@ -166,26 +236,33 @@ func readLoginUsers(db *DB, lib *LibFS) ([]*SteamUser, error) {
 	return users, err
 }
 
-func findSteamUser(db *DB) (*SteamUser, bool) {
+func findSteamUser(db *DB, userID uint64) (*SteamUser, bool) {
 	var users []*SteamUser
 	for _, lib := range findSteamLibs() {
-		accs, _ := readLoginUsers(db, lib)
-		users = append(users, accs...)
+		a, _ := readLoginUsers(db, lib)
+		users = append(users, a...)
 	}
 
 	if len(users) == 0 {
 		return nil, false
 	}
 
-	sort.Slice(users, func(i, j int) bool {
-		return users[j].Ts.Before(users[i].Ts)
-	})
+	var usr *SteamUser
+	for _, u := range users {
+		if userID != 0 && u.ID != userID {
+			continue
+		}
 
-	return users[0], true
+		if usr == nil || u.Ts.After(usr.Ts) {
+			usr = u
+		}
+	}
+
+	return usr, usr != nil
 }
 
-func openUserAvatar(db *DB) (fs.File, error) {
-	usr, ok := findSteamUser(db)
+func openUserAvatar(db *DB, userID uint64) (fs.File, error) {
+	usr, ok := findSteamUser(db, userID)
 	if !ok {
 		return nil, fs.ErrNotExist
 	}

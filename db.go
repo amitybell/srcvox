@@ -110,7 +110,23 @@ func CacheStat[T any](db *DB, f interface{ Stat() (fs.FileInfo, error) }, k stri
 
 	v, err := new()
 	if err != nil {
-		return v, fmt.Errorf("StatCache: %w", err)
+		return v, fmt.Errorf("CacheStat: %w", err)
+	}
+
+	// it's just a cache; it's fine if it fails
+	_ = Put(db, k, CacheEntry[T]{Ts: mtime, V: v, Ver: ver})
+
+	return v, nil
+}
+
+func CacheMtime[T any](db *DB, mtime time.Time, k string, ver int, new func() (T, error)) (T, error) {
+	if ent, err := Get[CacheEntry[T]](db, k); err == nil && ent.CheckMtime(mtime, ver) {
+		return ent.V, nil
+	}
+
+	v, err := new()
+	if err != nil {
+		return v, fmt.Errorf("CacheMtime: %w", err)
 	}
 
 	// it's just a cache; it's fine if it fails

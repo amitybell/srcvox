@@ -13,6 +13,7 @@ require (
 	github.com/amitybell/piper-voice-jenny v0.0.0-20231118093224-dcf0d49e46b7
 	github.com/andygrunwald/vdf v1.1.0
 	github.com/cockroachdb/pebble v0.0.0-20231117192856-717d49c2061f
+	github.com/fsnotify/fsnotify v1.4.9
 	github.com/gabriel-vasile/mimetype v1.4.3
 	github.com/gopxl/beep v1.2.0
 	github.com/vmihailenco/msgpack/v5 v5.4.1
