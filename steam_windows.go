@@ -3,6 +3,7 @@
 package main
 
 import (
+	"log/slog"
 	"os"
 	"strings"
 
@@ -14,7 +15,11 @@ var (
 		dirs := []string{}
 		regPath := `SOFTWARE\WOW6432Node\Valve\Steam`
 		reg, err := registry.OpenKey(registry.LOCAL_MACHINE, regPath, registry.QUERY_VALUE)
-		if err == nil {
+		if err != nil {
+			Logs.Debug("Cannot read registry",
+				slog.String("key", regPath),
+				slog.Any("error", err))
+		} else {
 			defer reg.Close()
 
 			dir, _, err := reg.GetStringValue("InstallPath")
@@ -35,6 +40,8 @@ var (
 				dirs = append(dirs, dir)
 			}
 		}
+
+		Logs.Debug("steamSearchDirs", slog.Any("dirs", dirs))
 
 		return dirs
 	}()

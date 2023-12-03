@@ -1,9 +1,8 @@
 package main
 
 import (
+	"regexp"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 )
 
 var (
@@ -52,6 +51,8 @@ var (
 		"thx":        {"thanks"},
 		"wololo":     {"wololo1", "wololo2"},
 	}
+
+	clanNamePat = regexp.MustCompile(`^\s*((?:\*+\s*[^*]+\*+)|(?:\[+\s*[^]]+\]+)|(?:\(+\s*[^)]+\)+))\s*(.+?)\s*$`)
 )
 
 func Translate(name, text string) string {
@@ -90,13 +91,8 @@ func Translate(name, text string) string {
 }
 
 func ClanName(username string) (clan, name string) {
-	i := strings.LastIndexFunc(username, func(r rune) bool {
-		return !unicode.IsLetter(r) && !unicode.IsSpace(r) && r != '-' && r != '_'
-	})
-	if i < 0 {
-		return "", strings.TrimSpace(username)
+	if m := clanNamePat.FindStringSubmatch(username); len(m) == 3 {
+		return m[1], m[2]
 	}
-	_, n := utf8.DecodeRuneInString(username[i:])
-	i += n
-	return strings.TrimSpace(username[:i]), strings.TrimSpace(username[i:])
+	return "", strings.TrimSpace(username)
 }

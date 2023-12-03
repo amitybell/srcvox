@@ -28,6 +28,7 @@ type Config struct {
 	ExcludeUsernames map[string]bool `json:"excludeUsernames"`
 	Hosts            map[string]bool `json:"hosts"`
 	FirstVoice       string          `json:"firstVoice"`
+	LogLevel         string          `json:"logLevel"`
 }
 
 func (c Config) Merge(p Config) Config {
@@ -54,6 +55,9 @@ func (c Config) Merge(p Config) Config {
 	}
 	if p.Hosts != nil {
 		c.Hosts = p.Hosts
+	}
+	if p.LogLevel != "" {
+		c.LogLevel = p.LogLevel
 	}
 	return c
 }

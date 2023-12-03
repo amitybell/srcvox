@@ -12,7 +12,7 @@ export function Games():Promise<Array<main.GameInfo>>;
 
 export function InGame(arg1:number):Promise<main.InGame>;
 
-export function Log(arg1:Array<any>):Promise<void>;
+export function Log(arg1:main.APILog):Promise<void>;
 
 export function Presence():Promise<main.Presence>;
 

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -27,10 +28,9 @@ var (
 )
 
 type SteamUser struct {
-	ID        uint64
-	Name      string
-	AvatarURL string
-	Ts        time.Time
+	ID   uint64
+	Name string
+	Ts   time.Time
 
 	lib *LibFS `msgpack:"-"`
 }
@@ -55,10 +55,7 @@ func (lib *LibFS) Open(name string) (fs.File, error) {
 }
 
 func (lib *LibFS) Stat(name string) (fs.FileInfo, error) {
-	if sfs, ok := lib.fs.(fs.StatFS); ok {
-		return sfs.Stat(name)
-	}
-	return os.Stat(filepath.Join(lib.Dir, filepath.FromSlash(name)))
+	return fs.Stat(lib.fs, name)
 }
 
 func (lib *LibFS) Mtime(name string) (time.Time, error) {
@@ -179,45 +176,81 @@ func readLoginUsers(db *DB, lib *LibFS) ([]*SteamUser, error) {
 	pth := "config/loginusers.vdf"
 	key := "/readLoginUsers/" + lib.Dir + "/" + pth
 	mtime, _ := lib.Mtime(pth)
-	users, err := CacheMtime(db, mtime, key, 1, func() (accs []*SteamUser, _ error) {
+	fn := filepath.Join(lib.Dir, filepath.FromSlash(pth))
+	users, err := CacheMtime(db, mtime, key, 4, func() (accs []*SteamUser, _ error) {
 		rc, err := lib.Open(pth)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("readloginUsers: %s: %w", fn, err)
 		}
 		defer rc.Close()
 
 		data, err := vdf.NewParser(rc).Parse()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("readloginUsers: %s: %w", fn, err)
 		}
 
 		users, ok := data["users"].(map[string]any)
 		if !ok {
-			return nil, fs.ErrNotExist
+			return nil, fmt.Errorf("readloginUsers: %s: %w", fn, fs.ErrNotExist)
 		}
 
 		for k, v := range users {
 			id, err := strconv.ParseUint(k, 10, 64)
-			if err != nil || id == 0 {
+			if err != nil {
+				Logs.Debug("cannot parse login ID",
+					slog.String("fn", fn),
+					slog.String("value", k),
+					slog.Any("error", err))
+				continue
+			}
+			if id == 0 {
+				Logs.Debug("login ID is zero",
+					slog.String("fn", fn),
+					slog.String("value", k))
 				continue
 			}
 
 			m, ok := v.(map[string]any)
 			if !ok {
+				Logs.Debug("login entry is not a map",
+					slog.String("fn", fn),
+					slog.Uint64("userID", id),
+					slog.String("type", fmt.Sprintf("%T", v)),
+					slog.String("value", fmt.Sprintf("%T", v)))
 				continue
 			}
 
 			name, ok := m["PersonaName"].(string)
 			if !ok {
+				Logs.Debug("PersonaName is not a string",
+					slog.String("fn", fn),
+					slog.Uint64("userID", id),
+					slog.String("type", fmt.Sprintf("%T", m["PersonaName"])),
+					slog.String("value", fmt.Sprintf("%T", m["PersonaName"])))
 				continue
 			}
 
 			s, ok := m["Timestamp"].(string)
 			if !ok {
+				Logs.Debug("Timestamp is not a string",
+					slog.String("fn", fn),
+					slog.Uint64("userID", id),
+					slog.String("type", fmt.Sprintf("%v", m["Timestamp"])),
+					slog.String("value", fmt.Sprintf("%v", m["Timestamp"])))
 				continue
 			}
 			ts, err := strconv.ParseInt(s, 10, 64)
-			if err != nil || id == 0 {
+			if err != nil {
+				Logs.Debug("cannot parse Timestamp",
+					slog.String("fn", fn),
+					slog.String("value", s),
+					slog.Any("error", err))
+				continue
+			}
+			if ts == 0 {
+				Logs.Debug("Timestamp is zero",
+					slog.String("fn", fn),
+					slog.String("value", s))
 				continue
 			}
 
@@ -233,36 +266,47 @@ func readLoginUsers(db *DB, lib *LibFS) ([]*SteamUser, error) {
 	for i, _ := range users {
 		users[i].lib = lib
 	}
-	return users, err
+	if err != nil {
+		return users, fmt.Errorf("readloginUsers: %s: %w", fn, err)
+	}
+	return users, nil
 }
 
-func findSteamUser(db *DB, userID uint64) (*SteamUser, bool) {
+func findSteamUser(db *DB, searchID uint64) (*SteamUser, bool) {
 	var users []*SteamUser
-	for _, lib := range findSteamLibs() {
-		a, _ := readLoginUsers(db, lib)
+	for _, dir := range findSteamPaths() {
+		a, err := readLoginUsers(db, NewLibFS(dir))
+		if err != nil {
+			Logs.Debug("findSteamUser: Cannot read login", slog.Any("error", err), slog.Uint64("searchID", searchID))
+		}
 		users = append(users, a...)
-	}
-
-	if len(users) == 0 {
-		return nil, false
 	}
 
 	var usr *SteamUser
 	for _, u := range users {
-		if userID != 0 && u.ID != userID {
-			continue
-		}
-
-		if usr == nil || u.Ts.After(usr.Ts) {
+		switch {
+		case searchID != 0 && u.ID != searchID:
+			Logs.Debug("findSteamUser: login skipped", slog.Uint64("searchID", searchID), slog.Uint64("loginID", u.ID))
+		case usr == nil:
+			usr = u
+		case u.Ts.After(usr.Ts):
 			usr = u
 		}
 	}
 
-	return usr, usr != nil
+	if usr == nil {
+		Logs.Debug("findSteamUser: No user logins found", slog.Uint64("searchID", searchID))
+		return nil, false
+	}
+	Logs.Debug("Steam User",
+		slog.Uint64("userID", usr.ID),
+		slog.String("userName", usr.Name),
+	)
+	return usr, true
 }
 
-func openUserAvatar(db *DB, userID uint64) (fs.File, error) {
-	usr, ok := findSteamUser(db, userID)
+func openUserAvatar(db *DB, searchID uint64) (fs.File, error) {
+	usr, ok := findSteamUser(db, searchID)
 	if !ok {
 		return nil, fs.ErrNotExist
 	}

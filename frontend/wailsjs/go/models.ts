@@ -1,5 +1,21 @@
 export namespace main {
 	
+	export class APILog {
+	    level: string;
+	    message: string;
+	    trace: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new APILog(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.level = source["level"];
+	        this.message = source["message"];
+	        this.trace = source["trace"];
+	    }
+	}
 	export class AppError {
 	    fatal: boolean;
 	    message: string;
@@ -84,6 +100,7 @@ export namespace main {
 	    excludeUsernames: {[key: string]: boolean};
 	    hosts: {[key: string]: boolean};
 	    firstVoice: string;
+	    logLevel: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new AppState(source);
@@ -103,6 +120,7 @@ export namespace main {
 	        this.excludeUsernames = source["excludeUsernames"];
 	        this.hosts = source["hosts"];
 	        this.firstVoice = source["firstVoice"];
+	        this.logLevel = source["logLevel"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

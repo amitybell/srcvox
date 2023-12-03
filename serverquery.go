@@ -156,7 +156,7 @@ func dialUDP(addr string) (*net.UDPConn, error) {
 }
 
 func readMsgUDP(conn *net.UDPConn, buf *memio.File) error {
-	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	conn.SetReadDeadline(time.Now().Add(10 * time.Second))
 
 	const minBfSize = 2 << 10
 	s := buf.Bytes()

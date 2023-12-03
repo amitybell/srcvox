@@ -9,19 +9,18 @@ var (
 	ErrServerNotStarted = errors.New("Server not started")
 )
 
+type APILog struct {
+	Level   string   `json:"level"`
+	Message string   `json:"message"`
+	Trace   []string `json:"trace"`
+}
+
 type API struct {
 	app *App
 }
 
-func (a *API) Log(p ...any) {
-	if len(p) == 0 {
-		return
-	}
-	// ui bindings use `any[]` instead of variadic args, so unwrap it
-	if q, ok := p[0].([]any); ok && len(p) == 1 {
-		p = q
-	}
-	Logs.Println(p...)
+func (a *API) Log(v APILog) {
+	Logs.API(v)
 }
 
 func (a *API) State() AppState {

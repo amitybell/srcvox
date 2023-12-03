@@ -7,17 +7,18 @@ export default function Presence() {
   const [open, setOpen] = useState(false)
   const pr = usePresence()
   if (pr.type !== 'ok') {
-    return <div className="presence-ctr">{pr.alt}</div>
+    return (
+      <div className="presence-ctr">
+        {' '}
+        {pr.type} {pr.alt}
+      </div>
+    )
   }
 
   const { clan, name, avatarURL, gameIconURI, inGame, username } = pr.v
   const playing = inGame && pr.v.humans.length !== 0
   const avatarSrc = playing ? gameIconURI || avatarURL : avatarURL || gameIconURI
   const humans = pr.v.humans.filter((name) => name !== username)
-
-  if (!name) {
-    return <div className="presence-ctr"></div>
-  }
 
   return (
     <Menu

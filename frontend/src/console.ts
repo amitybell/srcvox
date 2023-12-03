@@ -18,29 +18,41 @@ function strings(a: unknown[]): any {
   return a.map(stringify)
 }
 
+function stack(skip: number): string[] {
+  return new Error().stack?.split('\n').slice(skip + 1) ?? []
+}
+
 const { log, debug, error, warn, info } = window.console
+
+function logApp(skip: number, level: string, ...a: unknown[]) {
+  const msg = strings(a).join(' ')
+  if (msg === '' || msg === '{}') {
+    return
+  }
+  app.Log({ level, message: msg, trace: stack(skip + 1) })
+}
 
 window.console.log = function (...a: unknown[]) {
   log(...a)
-  app.Log(strings(a))
+  logApp(1, 'info', ...a)
 }
 
 window.console.debug = function (...a: unknown[]) {
   debug(...a)
-  app.Log(['DEBUG:', ...strings(a)])
+  logApp(1, 'debug', ...a)
 }
 
 window.console.error = function (...a: unknown[]) {
   error(...a)
-  app.Log(['ERROR:', ...strings(a)])
+  logApp(1, 'error', ...a)
 }
 
 window.console.warn = function (...a: unknown[]) {
   warn(...a)
-  app.Log(['WARN:', ...strings(a)])
+  logApp(1, 'warn', ...a)
 }
 
 window.console.info = function (...a: unknown[]) {
   info(...a)
-  app.Log(['INFO:', ...strings(a)])
+  logApp(1, 'info', ...a)
 }

@@ -2,8 +2,19 @@ package main
 
 import (
 	"fmt"
-	"github.com/adrg/xdg"
 	"path/filepath"
+
+	"github.com/adrg/xdg"
+)
+
+var (
+	paths = func() *Paths {
+		p, err := NewPaths("", "")
+		if err != nil {
+			panic(err)
+		}
+		return p
+	}()
 )
 
 type Paths struct {
@@ -38,6 +49,6 @@ func NewPaths(configDir, dataDir string) (*Paths, error) {
 		DataDir:        dataDir,
 		WebviewDataDir: filepath.Join(dataDir, "webview"),
 		DBDir:          filepath.Join(dataDir, "data.pb"),
-		LogsFn:         filepath.Join(dataDir, "logs.txt"),
+		LogsFn:         filepath.Join(dataDir, "logs.json"),
 	}, nil
 }

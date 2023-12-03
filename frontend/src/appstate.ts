@@ -204,6 +204,7 @@ export class AppState implements Omit<main.AppState, 'convertValues' | 'presence
   excludeUsernames: { [key: string]: boolean }
   hosts: { [key: string]: boolean }
   firstVoice: string
+  logLevel: string
 
   constructor(source?: unknown) {
     const p = sourceObject(source)
@@ -220,6 +221,7 @@ export class AppState implements Omit<main.AppState, 'convertValues' | 'presence
     this.excludeUsernames = coerce({}, p.excludeUsernames)
     this.hosts = coerce({}, p.hosts)
     this.firstVoice = coerce('', p.firstVoice)
+    this.logLevel = coerce('', p.logLevel)
   }
 }
 
