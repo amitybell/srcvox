@@ -1,15 +1,20 @@
 package main
 
 import (
+	"encoding/xml"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/amitybell/srcvox/files"
 
 	"github.com/andygrunwald/vdf"
 	"github.com/fsnotify/fsnotify"
@@ -302,13 +307,86 @@ func findSteamUser(db *DB, searchID uint64) (*SteamUser, bool) {
 		slog.Uint64("userID", usr.ID),
 		slog.String("userName", usr.Name),
 	)
+
+	if Env.Demo {
+		usr.Name = DemoUsername
+	}
+
 	return usr, true
 }
 
-func openUserAvatar(db *DB, searchID uint64) (fs.File, error) {
-	usr, ok := findSteamUser(db, searchID)
+func openUserAvatar(db *DB, userID uint64) (fs.File, error) {
+	usr, ok := findSteamUser(db, userID)
 	if !ok {
 		return nil, fs.ErrNotExist
 	}
 	return usr.Lib().Open(fmt.Sprintf("config/avatarcache/%d.png", usr.ID))
+}
+
+func userAvatarURI(db *DB, userID uint64) string {
+	f, err := openUserAvatar(db, userID)
+	if err != nil {
+		return DataURI("image/jpeg", files.DefaultAvatar)
+	}
+	defer f.Close()
+	s, err := ReadDataURI("image/png", f)
+	if err != nil {
+		return DataURI("image/jpeg", files.DefaultAvatar)
+	}
+	return s
+}
+
+type Profile struct {
+	ID        uint64 `json:"id"`
+	AvatarURI string `json:"avatarURI"`
+	Username  string `json:"username"`
+	Clan      string `json:"clan"`
+	Name      string `json:"name"`
+}
+
+func SteamProfile(db *DB, userID uint64, username string) (Profile, error) {
+	if userID == 0 {
+		return Profile{}, fmt.Errorf("Invalid userID: %d", userID)
+	}
+
+	ttl := 2 * time.Hour
+	ver := 1
+	dest := fmt.Sprintf("https://steamcommunity.com/profiles/%d?xml=1", userID)
+	return CacheTTL(db, ttl, dest, ver, func() (p Profile, _ error) {
+		defer func() {
+			p.Clan, p.Name = ClanName(p.Username)
+		}()
+
+		p = Profile{
+			ID:       userID,
+			Username: username,
+		}
+
+		resp, err := http.Get(dest)
+		if err != nil {
+			return p, err
+		}
+		defer resp.Body.Close()
+
+		v := struct {
+			XMLName    xml.Name `xml:"profile"`
+			AvatarIcon string   `xml:"avatarIcon"`
+		}{}
+		if err := xml.NewDecoder(resp.Body).Decode(&v); err != nil {
+			return p, err
+		}
+
+		if v.AvatarIcon != "" {
+			resp, err := http.Get(v.AvatarIcon)
+			if err == nil {
+				defer resp.Body.Close()
+				s, err := io.ReadAll(resp.Body)
+				if err == nil {
+					p.AvatarURI = DataURI("image/jpeg", s)
+				}
+			}
+		}
+
+		return p, nil
+	})
 }

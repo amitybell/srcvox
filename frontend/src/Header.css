@@ -27,7 +27,9 @@
     background: var(--menu-bg);
 
     & .menu-item {
-      justify-content: flex-end;
+      & > * {
+        flex: 1;
+      }
     }
   }
 }

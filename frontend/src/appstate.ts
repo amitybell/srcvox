@@ -2,6 +2,29 @@ import { main } from '../wailsjs/go/models'
 
 export type Region = number
 
+export class Profile implements main.Profile {
+  id: number
+  username: string
+  clan: string
+  name: string
+  avatarURI: string
+  avatarAlt: string
+
+  constructor(source?: unknown) {
+    const p = sourceObject(source)
+    this.id = coerce(0, p.id)
+    this.username = coerce('', p.username)
+    this.clan = coerce('', p.clan)
+    this.name = coerce('', p.name)
+    this.avatarURI = coerce('', p.avatarURI)
+    this.avatarAlt = /(\w)/.exec(this.name)?.[1] ?? '?'
+  }
+
+  static from(source?: unknown): Profile {
+    return new Profile(source)
+  }
+}
+
 export class ServerInfo implements main.ServerInfo {
   addr: string
   name: string
@@ -169,8 +192,9 @@ export class Presence implements Omit<main.Presence, 'convertValues'> {
   username: string
   clan: string
   name: string
-  humans: string[]
-  bots: string[]
+  humans: Profile[]
+  bots: Profile[]
+  server: string
 
   constructor(source?: unknown) {
     const p = sourceObject(source)
@@ -185,8 +209,9 @@ export class Presence implements Omit<main.Presence, 'convertValues'> {
     this.username = coerce('', p.username)
     this.clan = coerce('', p.clan)
     this.name = coerce('', p.name)
-    this.humans = coerce([], p.humans)
-    this.bots = coerce([], p.bots)
+    this.humans = coerce([], p.humans).map((p) => new Profile(p))
+    this.bots = coerce([], p.bots).map((p) => new Profile(p))
+    this.server = coerce('', p.server)
   }
 }
 

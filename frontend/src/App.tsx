@@ -1,5 +1,7 @@
 import 'modern-normalize/modern-normalize.css'
 import './App.css'
+import 'react-toastify/dist/ReactToastify.css'
+
 import { ReactElement, useState } from 'react'
 import Soundboard from './Soundboard'
 import Error from './Error'
@@ -9,6 +11,7 @@ import Servers from './Servers'
 import Settings from './Settings'
 import { useAppError, useEnv, useGames } from './hooks/query'
 import BgVideo from './BgVideo'
+import { ToastContainer } from 'react-toastify'
 
 const tabs: Tab[] = [{ name: 'servers' }, { name: 'soundboard' }]
 
@@ -30,7 +33,11 @@ function AppBody() {
   }
 
   if (err.v.message) {
-    return <Error fatal={err.v.fatal}>{err.v.message}</Error>
+    return (
+      <Error fatal={err.v.fatal}>
+        {typeof err.v.message}: {err.v.message}
+      </Error>
+    )
   }
 
   const tab = selectedTab || tabs.find((t) => t.name === env.v.initTab) || tabs[0]
@@ -62,6 +69,7 @@ function AppBody() {
           </main>
         </div>
       </div>
+      <ToastContainer />
     </>
   )
 }

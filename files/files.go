@@ -19,4 +19,7 @@ var (
 
 	//go:embed demo/fpsdoug.jpg
 	DemoAvatar []byte
+
+	//go:embed default/avatar.jpg
+	DefaultAvatar []byte
 )

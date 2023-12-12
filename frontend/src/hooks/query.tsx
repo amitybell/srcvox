@@ -5,7 +5,7 @@ import {
   useQuery,
   UseQueryResult,
 } from '@tanstack/react-query'
-import { ReactElement } from 'react'
+import { ReactElement, useId } from 'react'
 import Err from '../Error'
 import {
   AppError,
@@ -18,6 +18,7 @@ import {
   Environment,
   ServerInfo,
   Region,
+  Profile,
 } from '../appstate'
 import { app, useAppEvent } from '../api'
 import Spinner from '../Spinner'
@@ -53,7 +54,7 @@ function qResult<T>({ isLoading, refetch, error, data }: UseQueryResult<T, Error
     }
   }
   if (error) {
-    return { type: 'error', error, alt: <Err>{`${error}`}</Err>, refetch }
+    return { type: 'error', error, alt: <Err noLogo>{error.message}</Err>, refetch }
   }
   if (!data) {
     throw new Error(`data is ${data}`)
@@ -221,4 +222,30 @@ export function useServers(gameID: number, refresh: number): QResult<{ [key: str
       refetchInterval: refresh > 0 ? refresh : false,
     },
   )
+}
+
+export function useProfiles(
+  players: Profile[],
+  less: (a: Profile, b: Profile) => boolean,
+): Profile[] {
+  const res = useQueries({
+    queries: players.map(({ id, name }) => ({
+      queryKey: ['useProfiles', id],
+      queryFn: () => app.Profile(id, name),
+      select: (p: unknown) => new Profile(p),
+    })),
+  })
+  return res
+    .map((p) => {
+      const r = qResult(p)
+      return r.type === 'ok' ? r.v : null
+    })
+    .filter((p): p is Profile => p != null)
+    .sort((a, b) => (less(a, b) ? -1 : 1))
+}
+
+export function useHumanPlayerProfiles(server: string = ''): Profile[] {
+  const pr = usePresence()
+  const humanIDs = pr.type === 'ok' && (!server || pr.v.server === server) ? pr.v.humans : []
+  return useProfiles(humanIDs, (a, b) => a.id < b.id).filter(({ avatarURI }) => !!avatarURI)
 }

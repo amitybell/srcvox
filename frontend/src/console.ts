@@ -11,7 +11,11 @@ function stringify(v: unknown): unknown {
   if (o !== null && typeof o.toLogString === 'function') {
     return o.toLogString()
   }
-  return JSON.stringify(v)
+  try {
+    return JSON.stringify(v)
+  } catch {
+    return `${v}`
+  }
 }
 
 function strings(a: unknown[]): any {

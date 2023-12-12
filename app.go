@@ -282,8 +282,12 @@ func (app *App) initPresence() {
 		p.InGame = Env.Demo
 		p.UserID = usr.ID
 		p.Username = usr.Name
+		p.AvatarURI = userAvatarURI(app.DB, usr.ID)
+		if Env.Demo {
+			p.Username = DemoUsername
+			p.AvatarURI = DataURI("image/jpeg", files.DemoAvatar)
+		}
 		p.Clan, p.Name = ClanName(usr.Name)
-		p.AvatarURL, _ = app.serverURL("/app.avatar", url.Values{"id": {strconv.FormatUint(usr.ID, 10)}})
 		s.Presence = p
 		return s
 	})
@@ -458,6 +462,10 @@ func (app *App) initServeMux() {
 }
 
 func (app *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		return
+	}
 	app.serveMux.ServeHTTP(w, r)
 }
 

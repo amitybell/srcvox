@@ -23,8 +23,18 @@
   }
   & .presence-name {
   }
-  & .presence-humans {
-    opacity: 0.75;
-    font-size: smaller;
+}
+
+.presence-human-profile {
+  opacity: 0.75;
+  display: flex;
+  gap: 0.5rem;
+
+  & .presence-human-profile-avatar {
+    align-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    object-fit: contain;
+    border-radius: 0.25rem;
   }
 }

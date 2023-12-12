@@ -15,6 +15,7 @@ import (
 
 	"github.com/amitybell/memio"
 	"github.com/gopxl/beep"
+	"github.com/tqwewe/go-steam/steamid"
 	"github.com/ziutek/telnet"
 )
 
@@ -36,6 +37,8 @@ var (
 	FlatpakPat  = regexp.MustCompile(`^\w+:([\\].+)`)
 	ConnectPat  = regexp.MustCompile(`(?i)^\s*(.*)\s*(connected|disconnected|Not connected to server)\s*$`)
 	StatusPat   = regexp.MustCompile(`^#\s+\d+(?:\s+\d+)?\s+"([^"]+)".+(STEAM_\d+:\d+:\d+|BOT)`)
+	// TODO: support IPv6?
+	StatusServerPat = regexp.MustCompile(`^\s*Connected to (\d+\.\d+\.\d+\.\d+:\d+)\s*$`)
 )
 
 type X = []string
@@ -47,7 +50,8 @@ type Tnet struct {
 
 	// signal to readLineStatus that `status` was exec'd
 	// and the list should be repopulated
-	resetStatus atomic.Bool
+	resetStatus  atomic.Bool
+	statusServer atomic.Pointer[string]
 
 	app *App
 }
@@ -164,12 +168,9 @@ func (tn *Tnet) readLineName(username string) {
 	if Env.Demo {
 		username = DemoUsername
 	}
-	clan, name := ClanName(username)
 	tn.app.UpdateState(func(s AppState) AppState {
-		// we don't set OK, because the essectial data is set by readLineGamePath
 		s.Presence.Username = username
-		s.Presence.Clan = clan
-		s.Presence.Name = name
+		s.Presence.Clan, s.Presence.Name = ClanName(username)
 		return s
 	})
 }
@@ -226,19 +227,33 @@ func (tn *Tnet) execStatus() error {
 	return tn.Exec(X{"status"})
 }
 
+func (tn *Tnet) checkResetStatus(s AppState) AppState {
+	if !tn.resetStatus.CompareAndSwap(true, false) {
+		return s
+	}
+	s.Presence.Server = ""
+	if p := tn.statusServer.Load(); p != nil {
+		s.Presence.Server = *p
+	}
+	s.Presence.Humans = s.Presence.Humans.Clear()
+	s.Presence.Bots = s.Presence.Bots.Clear()
+	return s
+}
+
+func (tn *Tnet) readLineStatusServer(addr string) {
+	tn.statusServer.Store(&addr)
+}
+
 func (tn *Tnet) readLineStatus(name string, id string) {
 	tn.app.UpdateState(func(s AppState) AppState {
-		if tn.resetStatus.Load() {
-			tn.resetStatus.Store(false)
-			s.Presence.Humans = s.Presence.Humans.Clear()
-			s.Presence.Bots = s.Presence.Bots.Clear()
-		}
+		s = tn.checkResetStatus(s)
 
 		if id == "BOT" {
-			s.Presence.Bots = s.Presence.Bots.Add(name)
-		} else {
-			s.Presence.Humans = s.Presence.Humans.Add(name)
+			s.Presence.Bots = s.Presence.Bots.Add(Profile{Name: name})
+			return s
 		}
+		p, _ := SteamProfile(tn.app.DB, steamid.NewID(id).To64().Uint64(), name)
+		s.Presence.Humans = s.Presence.Humans.Add(p)
 		return s
 	})
 }
@@ -259,9 +274,9 @@ func (tn *Tnet) readLineConnect(name, status string) {
 }
 
 func (tn *Tnet) hostInGame(state AppState) (string, bool) {
-	for _, nm := range state.Presence.Humans.Slice() {
-		if state.Hosts[nm] {
-			return nm, true
+	for _, p := range state.Presence.Humans.Slice() {
+		if state.Hosts[p.Name] {
+			return p.Name, true
 		}
 	}
 	return "", false
@@ -327,6 +342,11 @@ func (tn *Tnet) readLine(line string) {
 
 	if ln := StatusPat.FindStringSubmatch(line); len(ln) == 3 {
 		tn.readLineStatus(ln[1], ln[2])
+		return
+	}
+
+	if ln := StatusServerPat.FindStringSubmatch(line); len(ln) == 2 {
+		tn.readLineStatusServer(ln[1])
 		return
 	}
 
@@ -407,9 +427,6 @@ func dialTnet(ctx context.Context, app *App) (_ *Tnet, _ context.Context, cancel
 	return tn, ctx, cancel, nil
 }
 
-func tnetCleanupPresence(app *App) {
-}
-
 func tnetCleanup(app *App, retErr *error) {
 	app.UpdateState(func(s AppState) AppState {
 		s.Presence.Error = "disconnected"
@@ -419,6 +436,7 @@ func tnetCleanup(app *App, retErr *error) {
 		s.Presence.InGame = Env.Demo
 		s.Presence.Humans = s.Presence.Humans.Clear()
 		s.Presence.Bots = s.Presence.Bots.Clear()
+		s.Presence.Server = ""
 		return s
 	})
 }

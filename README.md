@@ -4,3 +4,4 @@ Companion app for Valve's Source Engine based games with voice clips and text-to
 
 ![ServerList](frontend/src/assets/screenshots/serverlist.jpg)
 ![Soundboard](frontend/src/assets/screenshots/soundboard.jpg)
+![ServerList Expanded](frontend/src/assets/screenshots/serverlist-expanded.jpg)

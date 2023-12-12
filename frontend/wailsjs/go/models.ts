@@ -42,10 +42,11 @@ export namespace main {
 	    gameIconURI: string;
 	    gameHeroURI: string;
 	    gameDir: string;
-	    // Go type: SliceSet[string]
+	    // Go type: SliceSet[main
 	    humans: any;
-	    // Go type: SliceSet[string]
+	    // Go type: SliceSet[main
 	    bots: any;
+	    server: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Presence(source);
@@ -66,6 +67,7 @@ export namespace main {
 	        this.gameDir = source["gameDir"];
 	        this.humans = this.convertValues(source["humans"], null);
 	        this.bots = this.convertValues(source["bots"], null);
+	        this.server = source["server"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -198,6 +200,26 @@ export namespace main {
 	    }
 	}
 	
+	export class Profile {
+	    id: number;
+	    avatarURI: string;
+	    username: string;
+	    clan: string;
+	    name: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Profile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.avatarURI = source["avatarURI"];
+	        this.username = source["username"];
+	        this.clan = source["clan"];
+	        this.name = source["name"];
+	    }
+	}
 	export class ServerInfo {
 	    addr: string;
 	    name: string;

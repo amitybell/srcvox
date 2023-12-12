@@ -18,6 +18,9 @@
   --app-bg: rgb(0 0 0 / 0.75);
   --modal-fg: var(--color);
   --modal-bg: rgb(0 0 0 / 0.95);
+  --dbg-c1: cyan;
+  --dbg-c2: magenta;
+  --radius: 0.25rem;
 
   font-family: sans-serif;
 }

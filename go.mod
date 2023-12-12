@@ -17,6 +17,7 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.3
 	github.com/gofrs/uuid/v5 v5.0.0
 	github.com/gopxl/beep v1.2.0
+	github.com/tqwewe/go-steam v0.0.0-20180123160439-47418f6637e6
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	github.com/wailsapp/wails/v2 v2.6.0
 	github.com/ziutek/telnet v0.0.0-20180329124119-c3b780dc415b

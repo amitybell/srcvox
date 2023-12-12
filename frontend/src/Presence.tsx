@@ -2,10 +2,12 @@ import { useState } from 'react'
 import Menu from './Menu'
 import './Presence.css'
 import { usePresence } from './hooks/query'
+import Avatar from './Avatar'
 
 export default function Presence() {
   const [open, setOpen] = useState(false)
   const pr = usePresence()
+  // const humans = useHumanPlayerProfiles()
   if (pr.type !== 'ok') {
     return (
       <div className="presence-ctr">
@@ -15,10 +17,9 @@ export default function Presence() {
     )
   }
 
-  const { clan, name, avatarURL, gameIconURI, inGame, username } = pr.v
-  const playing = inGame && pr.v.humans.length !== 0
+  const { clan, name, avatarURL, gameIconURI, inGame, humans } = pr.v
+  const playing = inGame && humans.length !== 0
   const avatarSrc = playing ? gameIconURI || avatarURL : avatarURL || gameIconURI
-  const humans = pr.v.humans.filter((name) => name !== username)
 
   return (
     <Menu
@@ -34,8 +35,17 @@ export default function Presence() {
         </div>
       }
       items={humans
-        .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
-        .map((name) => ({ key: name, body: <span>{name}</span> }))}
+        .filter(({ username }) => username !== pr.v.username)
+        .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()))
+        .map((p) => ({
+          key: p.id,
+          body: (
+            <div className="presence-human-profile">
+              <Avatar {...p} />
+              <span className="presence-human-profile-name">{p.name}</span>
+            </div>
+          ),
+        }))}
     />
   )
 }

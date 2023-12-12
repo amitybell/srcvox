@@ -27,7 +27,7 @@ var (
 	}
 
 	Substites = map[string][]string{
-		"ns":         {"nice", "nice shot", "noice", "goodjob"},
+		"ns":         {"nice shot", "goodjob", "decent"},
 		"bb":         {"bye1", "bye-ni1", "bye-ni2"},
 		"bye":        {"bye1", "bye-ni1", "bye-ni2"},
 		"glhf":       {"good luck, have fun!"},
@@ -36,9 +36,10 @@ var (
 		"icq":        {"list", "look", "honey", "run2"},
 		"yw":         {"you're welcome!"},
 		"hacker":     {"hacker", "$name is the hacker!"},
+		"bitch":      {"bitch1", "$name is a bitch!"},
 		"hack":       {"hack", "hack the planet!"},
 		"usure":      {"I'm sure"},
-		"boxxy":      {"boxxy", "iamboxxy"},
+		"boxxy":      {"isboxxy", "nottrollin", "iamboxxy"},
 		"baby":       {"corner"},
 		"lol":        {"haha", "lol"},
 		"ladydecade": {"ladydecade1", "ladydecade2", "ladydecade3", "ladydecade4"},

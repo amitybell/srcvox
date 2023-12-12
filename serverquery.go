@@ -7,7 +7,6 @@ import (
 	"io"
 	"net"
 	"net/netip"
-	"sort"
 	"sync"
 	"time"
 
@@ -17,8 +16,8 @@ import (
 
 const (
 	SourceMasterServerAddr = "hl2master.steampowered.com:27011"
-	serverListCacheMaxAge  = 6 * time.Hour
-	serverInfoCacheMaxAge  = 2 * time.Minute
+	serverListCacheMaxAge  = 1 * time.Hour
+	serverInfoCacheMaxAge  = 1 * time.Minute
 )
 
 var (
@@ -249,7 +248,7 @@ func serverList(db *DB, gameID uint64) (map[string]Region, error) {
 		maxAge = -1
 	}
 	key := fmt.Sprintf("/serverList/addr-region/%d", gameID)
-	return CacheTTL(db, maxAge, key, 1, func() (map[string]Region, error) {
+	return CacheTTL(db, maxAge, key, 2, func() (map[string]Region, error) {
 		replies, err := queryServerList(gameID)
 		if err != nil {
 			return nil, fmt.Errorf("serverList: %s", err)
@@ -493,14 +492,14 @@ func queryServerInfo(region Region, addr string) (_r *ServerReply, _err error) {
 	}
 }
 
-func serverInfo(db *DB, region Region, addr string) (ServerInfo, *ServerReply, error) {
+func serverInfo(app *App, region Region, addr string) (ServerInfo, *ServerReply, error) {
 	maxAge := serverInfoCacheMaxAge
 	if Env.Demo {
 		maxAge = -1
 	}
 
 	key := fmt.Sprintf("/serverInfo/%s", addr)
-	rep, err := CacheTTL(db, maxAge, key, 1, func() (*ServerReply, error) {
+	rep, err := CacheTTL(app.DB, maxAge, key, 1, func() (*ServerReply, error) {
 		return queryServerInfo(region, addr)
 	})
 	if err != nil {
@@ -522,61 +521,9 @@ func serverInfo(db *DB, region Region, addr string) (ServerInfo, *ServerReply, e
 		Country:    cc,
 	}
 	if Env.Demo {
-		m := 32
-		n := m - randIntn(5)
-		inf.Players = randIntRange(n, m)
+		inf.MaxPlayers = 32
+		inf.Players = inf.MaxPlayers - randIntn(4)
+		inf.Bots = inf.MaxPlayers - inf.Players
 	}
 	return inf, rep, nil
-}
-
-func ServerInfos(db *DB, gameID uint64) ([]ServerInfo, error) {
-	addrs, err := serverList(db, gameID)
-	// the info is still useful even if some requests fail
-	if len(addrs) == 0 && err != nil {
-		return nil, fmt.Errorf("ServerInfos: %w", err)
-	}
-
-	type srvInfo struct {
-		Region Region
-		Addr   string
-	}
-	queue := make(chan srvInfo, len(addrs))
-	for a, r := range addrs {
-		queue <- srvInfo{Region: r, Addr: a}
-	}
-	close(queue)
-
-	results := make(chan ServerInfo)
-	workers := sync.WaitGroup{}
-	for i := 0; i < 32; i++ {
-		workers.Add(1)
-		go func() {
-			defer workers.Done()
-
-			for si := range queue {
-				inf, _, err := serverInfo(db, si.Region, si.Addr)
-				if err != nil {
-					continue
-				}
-				results <- inf
-			}
-		}()
-	}
-	go func() {
-		workers.Wait()
-		close(results)
-	}()
-
-	infos := make([]ServerInfo, 0, len(addrs))
-	for inf := range results {
-		infos = append(infos, inf)
-	}
-	sort.Slice(infos, func(i, j int) bool {
-		p, q := infos[i], infos[j]
-		if p.Players != q.Players {
-			return q.Players < p.Players
-		}
-		return p.Name < q.Name
-	})
-	return infos, nil
 }

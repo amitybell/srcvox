@@ -30,12 +30,12 @@ export function Presence() {
   return window['go']['main']['API']['Presence']();
 }
 
-export function ServerInfo(arg1, arg2) {
-  return window['go']['main']['API']['ServerInfo'](arg1, arg2);
+export function Profile(arg1, arg2) {
+  return window['go']['main']['API']['Profile'](arg1, arg2);
 }
 
-export function ServerInfos(arg1) {
-  return window['go']['main']['API']['ServerInfos'](arg1);
+export function ServerInfo(arg1, arg2) {
+  return window['go']['main']['API']['ServerInfo'](arg1, arg2);
 }
 
 export function Servers(arg1) {

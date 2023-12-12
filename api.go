@@ -67,12 +67,8 @@ func (a *API) Servers(gameID uint64) (map[string]Region, error) {
 }
 
 func (a *API) ServerInfo(region Region, addr string) (ServerInfo, error) {
-	inf, _, err := serverInfo(a.app.DB, region, addr)
+	inf, _, err := serverInfo(a.app, region, addr)
 	return inf, err
-}
-
-func (a *API) ServerInfos(gameID uint64) ([]ServerInfo, error) {
-	return ServerInfos(a.app.DB, gameID)
 }
 
 func (a *API) AppAddr() (string, error) {
@@ -81,4 +77,8 @@ func (a *API) AppAddr() (string, error) {
 		return "", ErrServerNotStarted
 	}
 	return lsn.Addr().String(), nil
+}
+
+func (a *API) Profile(userID uint64, name string) (Profile, error) {
+	return SteamProfile(a.app.DB, userID, name)
 }

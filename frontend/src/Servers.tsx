@@ -1,16 +1,20 @@
 import './Servers.css'
-import { ReactElement, ReactNode, useEffect, useState } from 'react'
+import { ReactElement, ReactNode, useEffect, useRef, useState } from 'react'
 import Menu from './Menu'
-import { GameInfo, ServerInfo } from './appstate'
-import { useEnv, useServerInfos, useServers } from './hooks/query'
+import { GameInfo, Presence, ServerInfo, Profile } from './appstate'
+import { useEnv, useMapImage, usePresence, useServerInfos, useServers } from './hooks/query'
 import { openURL } from './api'
 import {
   PiLockKeyOpenFill as PrivateServerIcon,
   PiArrowFatLinesRightFill as ConnectIcon,
   PiArrowFatRight as RightArrow,
   PiArrowFatDown as DownArrow,
+  PiCameraDuotone as ScreenshotIcon,
 } from 'react-icons/pi'
 import Flag from 'react-world-flags'
+import { toast } from 'react-toastify'
+import html2canvas from 'html2canvas'
+import Avatar from './Avatar'
 
 interface GameProps {
   p: GameInfo
@@ -29,9 +33,109 @@ function Game({ p: { iconURI, title }, onClick, subtitle }: GameProps) {
   )
 }
 
-function ServerListInfo({ p, game }: { p: ServerInfo; game: GameInfo }) {
-  const [open, setOpen] = useState(false)
+function ServerListInfoIconCell({
+  p,
+  game,
+  src,
+  onLoad,
+}: ServerListInfoProps & { src?: string; onLoad?: () => void }) {
+  return (
+    <div className="servers-info-image-ctr">
+      {p.restricted ? (
+        <PrivateServerIcon className="servers-info-icon" />
+      ) : (
+        <Flag className="servers-info-icon" code={p.country} />
+      )}
+      <img
+        className="servers-info-map-image"
+        alt=""
+        src={src || `${game.mapImageURL}&map=${p.map}`}
+        onLoad={onLoad}
+      />
+    </div>
+  )
+}
 
+async function screenshot(elem: HTMLElement | null) {
+  if (!elem) {
+    return
+  }
+
+  navigator.clipboard
+    .write([
+      new ClipboardItem({
+        'image/png': html2canvas(elem).then((canvas) => {
+          return new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+              if (!blob) {
+                reject(new Error('Failed to screenshot badge: blob not generated'))
+                return
+              }
+              toast.success('Badge copied to clipbaord')
+              resolve(blob)
+            })
+          })
+        }),
+      }),
+    ])
+    .catch((e) => {
+      toast.error(`Failed to copy badge to clipbaord: ${e}`)
+    })
+}
+
+function ServerInfoBadge({ p, game, presence: pr }: ServerListInfoProps) {
+  const badgeRef = useRef<HTMLDivElement | null>(null)
+  const mapImg = useMapImage(game.id, p.map)
+
+  if (mapImg.type !== 'ok') {
+    return null
+  }
+
+  const players = p.players
+  const humans = pr.server === p.addr ? pr.humans : []
+
+  return (
+    <div className="servers-info-badge-ctr">
+      <div
+        className="servers-info-badge"
+        ref={badgeRef}
+        style={{
+          backgroundImage: `linear-gradient(to bottom, rgb(0 0 0 / 0.5), rgb(0 0 0 / 0.5)), url(${mapImg.v})`,
+        }}
+      >
+        <div className="servers-info-badge-title">
+          <span className="servers-info-badge-player-count">{players}</span>{' '}
+          <span>{players === 1 ? 'player' : 'players'} on</span>{' '}
+          <span className="servers-info-badge-server-name">{p.name}</span>{' '}
+          {p.restricted ? (
+            <PrivateServerIcon className="servers-info-badge-icon" />
+          ) : (
+            <Flag className="servers-info-badge-icon" code={p.country} />
+          )}
+        </div>
+        {humans.length ? (
+          <div className="servers-info-badge-players-ctr">
+            {humans.map((p, i) => (
+              <Avatar key={p.id || i} {...p} />
+            ))}
+          </div>
+        ) : null}
+      </div>
+      <button className="servers-info-badge-btn" onClick={() => screenshot(badgeRef.current)}>
+        <ScreenshotIcon />
+      </button>
+    </div>
+  )
+}
+
+interface ServerListInfoProps {
+  p: ServerInfo
+  game: GameInfo
+  presence: Presence
+}
+
+function ServerListInfo({ p, game, presence }: ServerListInfoProps) {
+  const [open, setOpen] = useState(false)
   const details: [string, ReactNode][] = [
     ['Name:', p.name],
     [
@@ -63,18 +167,7 @@ function ServerListInfo({ p, game }: { p: ServerInfo; game: GameInfo }) {
         title={`${p.name} ${p.addr}`}
       >
         <td className="servers-info-image-ctr-ctr">
-          <div className="servers-info-image-ctr">
-            {p.restricted ? (
-              <PrivateServerIcon className="servers-info-icon" />
-            ) : (
-              <Flag className="servers-info-icon" code={p.country} />
-            )}
-            <img
-              className="servers-info-map-image"
-              alt=""
-              src={`${game.mapImageURL}&map=${p.map}`}
-            />
-          </div>
+          <ServerListInfoIconCell p={p} game={game} presence={presence} />
         </td>
         <td className="servers-info-name-ctr" onClick={() => setOpen(!open)}>
           <span className="servers-info-name">
@@ -113,6 +206,7 @@ function ServerListInfo({ p, game }: { p: ServerInfo; game: GameInfo }) {
                 ))}
               </tbody>
             </table>
+            <ServerInfoBadge p={p} game={game} presence={presence} />
           </td>
         </tr>
       ) : null}
@@ -140,6 +234,7 @@ function ServerList({ gameID, gameIdx, games, onGameSelect }: ServerListProps) {
   const [refresh, setRefresh] = useState(60000)
   const [order, _serOrder] = useState<OrderBy>('players')
   const addrs = useServers(gameID, refresh)
+  const pr = usePresence()
   const servers = useServerInfos(addrs.type === 'ok' ? addrs.v : {}, refresh / 2, orderBy(order))
   const env = useEnv()
   useEffect(() => {
@@ -157,6 +252,9 @@ function ServerList({ gameID, gameIdx, games, onGameSelect }: ServerListProps) {
   }
   if (env.type !== 'ok') {
     return env.alt
+  }
+  if (pr.type !== 'ok') {
+    return pr.alt
   }
 
   const game = games[gameIdx]
@@ -190,7 +288,7 @@ function ServerList({ gameID, gameIdx, games, onGameSelect }: ServerListProps) {
       </thead>
       <tbody>
         {serverList.map((p) => (
-          <ServerListInfo key={p.addr} game={game} p={p} />
+          <ServerListInfo key={p.addr} game={game} p={p} presence={pr.v} />
         ))}
       </tbody>
     </table>
