@@ -9,39 +9,46 @@ import (
 
 var (
 	DefaultConfig = Config{
-		AudioDelay:    500 * time.Millisecond,
-		AudioLimit:    10 * time.Second,
-		AudioLimitTTS: 3 * time.Second,
+		AudioDelay:    Dur{D: 500 * time.Millisecond},
+		AudioLimit:    Dur{D: 10 * time.Second},
+		AudioLimitTTS: Dur{D: 3 * time.Second},
 		TextLimit:     64,
-		TnetPort:      31173,
-		FirstVoice:    "jenny",
+		TnetPort: func() int {
+			if Env.TnetPort > 0 {
+				return Env.TnetPort
+			}
+			return 31173
+		}(),
+		FirstVoice: "jenny",
+		RateLimit:  Dur{D: 5 * time.Second},
 	}
 )
 
 type Config struct {
 	TnetPort         int             `json:"tnetPort"`
-	AudioDelay       time.Duration   `json:"audioDelay"`
-	AudioLimit       time.Duration   `json:"audioLimit"`
-	AudioLimitTTS    time.Duration   `json:"audioLimitTTS"`
+	AudioDelay       Dur             `json:"audioDelay"`
+	AudioLimit       Dur             `json:"audioLimit"`
+	AudioLimitTTS    Dur             `json:"audioLimitTTS"`
 	TextLimit        int             `json:"textLimit"`
 	IncludeUsernames map[string]bool `json:"includeUsernames"`
 	ExcludeUsernames map[string]bool `json:"excludeUsernames"`
 	Hosts            map[string]bool `json:"hosts"`
 	FirstVoice       string          `json:"firstVoice"`
 	LogLevel         string          `json:"logLevel"`
+	RateLimit        Dur             `json:"rateLimit"`
 }
 
 func (c Config) Merge(p Config) Config {
 	if p.TnetPort > 0 {
 		c.TnetPort = p.TnetPort
 	}
-	if p.AudioDelay > 0 {
+	if p.AudioDelay.D > 0 {
 		c.AudioDelay = p.AudioDelay
 	}
-	if p.AudioLimit > 0 {
+	if p.AudioLimit.D > 0 {
 		c.AudioLimit = p.AudioLimit
 	}
-	if p.AudioLimitTTS > 0 {
+	if p.AudioLimitTTS.D > 0 {
 		c.AudioLimitTTS = p.AudioLimitTTS
 	}
 	if p.TextLimit > 0 {
@@ -58,6 +65,9 @@ func (c Config) Merge(p Config) Config {
 	}
 	if p.LogLevel != "" {
 		c.LogLevel = p.LogLevel
+	}
+	if p.RateLimit.D > 0 {
+		c.RateLimit = p.RateLimit
 	}
 	return c
 }

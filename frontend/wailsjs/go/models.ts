@@ -94,15 +94,20 @@ export namespace main {
 	    presence: Presence;
 	    error: AppError;
 	    tnetPort: number;
-	    audioDelay: number;
-	    audioLimit: number;
-	    audioLimitTTS: number;
+	    // Go type: Dur
+	    audioDelay: any;
+	    // Go type: Dur
+	    audioLimit: any;
+	    // Go type: Dur
+	    audioLimitTTS: any;
 	    textLimit: number;
 	    includeUsernames: {[key: string]: boolean};
 	    excludeUsernames: {[key: string]: boolean};
 	    hosts: {[key: string]: boolean};
 	    firstVoice: string;
 	    logLevel: string;
+	    // Go type: Dur
+	    rateLimit: any;
 	
 	    static createFrom(source: any = {}) {
 	        return new AppState(source);
@@ -114,15 +119,16 @@ export namespace main {
 	        this.presence = this.convertValues(source["presence"], Presence);
 	        this.error = this.convertValues(source["error"], AppError);
 	        this.tnetPort = source["tnetPort"];
-	        this.audioDelay = source["audioDelay"];
-	        this.audioLimit = source["audioLimit"];
-	        this.audioLimitTTS = source["audioLimitTTS"];
+	        this.audioDelay = this.convertValues(source["audioDelay"], null);
+	        this.audioLimit = this.convertValues(source["audioLimit"], null);
+	        this.audioLimitTTS = this.convertValues(source["audioLimitTTS"], null);
 	        this.textLimit = source["textLimit"];
 	        this.includeUsernames = source["includeUsernames"];
 	        this.excludeUsernames = source["excludeUsernames"];
 	        this.hosts = source["hosts"];
 	        this.firstVoice = source["firstVoice"];
 	        this.logLevel = source["logLevel"];
+	        this.rateLimit = this.convertValues(source["rateLimit"], null);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -148,6 +154,7 @@ export namespace main {
 	    demo: boolean;
 	    initTab: string;
 	    initSbText: string;
+	    tnetPort: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new Environment(source);
@@ -159,6 +166,7 @@ export namespace main {
 	        this.demo = source["demo"];
 	        this.initTab = source["initTab"];
 	        this.initSbText = source["initSbText"];
+	        this.tnetPort = source["tnetPort"];
 	    }
 	}
 	export class GameInfo {

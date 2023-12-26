@@ -9,9 +9,7 @@ const (
 	SvErrorChangeEvent    = "sv.ErrorChange"
 )
 
-var (
-	DefaultAppState = AppState{}
-)
+type Reducer func(p AppState) AppState
 
 type AppState struct {
 	LastUpdate time.Time `json:"lastUpdate"`

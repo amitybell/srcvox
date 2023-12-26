@@ -16,11 +16,11 @@ func randBool() bool {
 	return randInt()&1 == 1
 }
 
-func randIntRange(n, m int) int {
+func randRange[T ~int8 | ~int16 | ~int32 | ~int64 | ~int](n, m T) T {
 	if m <= n {
 		return m
 	}
-	return n + randIntn(m-n)
+	return n + T(randIntn(int(m-n)))
 }
 
 func randElem[T any](s []T) T {

@@ -22,6 +22,7 @@ require (
 	github.com/wailsapp/wails/v2 v2.6.0
 	github.com/ziutek/telnet v0.0.0-20180329124119-c3b780dc415b
 	golang.org/x/sys v0.14.0
+	golang.org/x/time v0.3.0
 	lukechampine.com/frand v1.4.2
 )
 

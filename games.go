@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/amitybell/srcvox/files"
 	"io/fs"
 	"path"
 	"strconv"
+
+	"github.com/amitybell/srcvox/files"
 )
 
 var (

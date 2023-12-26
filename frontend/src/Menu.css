@@ -20,6 +20,7 @@
     position: absolute;
     z-index: 1;
     min-width: 100%;
+    width: auto;
     margin: 0;
     padding: 0.5rem 0 0 0;
     list-style: none;

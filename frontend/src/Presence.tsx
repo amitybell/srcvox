@@ -42,7 +42,7 @@ export default function Presence() {
           body: (
             <div className="presence-human-profile">
               <Avatar {...p} />
-              <span className="presence-human-profile-name">{p.name}</span>
+              <span className="presence-human-profile-name">{p.username}</span>
             </div>
           ),
         }))}

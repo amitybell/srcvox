@@ -132,7 +132,9 @@ func (l *Logger) Printf(f string, a ...any) {
 }
 
 func (l *Logger) Println(a ...any) {
-	l.Record(1, slog.LevelInfo, fmt.Sprintln(a...))
+	s := fmt.Sprintln(a...)
+	s = strings.TrimRight(s, "\r\n")
+	l.Record(1, slog.LevelInfo, s)
 }
 
 func (l *Logger) API(v APILog) {

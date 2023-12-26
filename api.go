@@ -68,6 +68,13 @@ func (a *API) Servers(gameID uint64) (map[string]Region, error) {
 
 func (a *API) ServerInfo(region Region, addr string) (ServerInfo, error) {
 	inf, _, err := serverInfo(a.app, region, addr)
+	// server query might be stale
+	// update it if we have more up-to-date `status` info
+	p := a.app.State().Presence
+	if p.Server == inf.Addr && p.Ts.After(inf.Ts) && p.Humans.Len() > 0 {
+		inf.Players = p.Humans.Len()
+		inf.Bots = p.Bots.Len()
+	}
 	return inf, err
 }
 

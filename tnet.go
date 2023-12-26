@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -30,15 +31,16 @@ var (
 		// Valve docs say to use 22050, but MC:V appears to only support 11025
 		SampleRate: 22050 / 2,
 	}
+	ChatPat         = regexp.MustCompile(`^(?:[*](?:DEAD|SPEC)[*])?\s*(?:\([^)]+\))?\s*(.+?)\s*:\s*(?:[#]|:\s?>|:\s?<|<\s?:|>\s?:)\s*(.+?)\s*$`)
+	CvarPat         = regexp.MustCompile(`^(?:\[[^\]]+\])?"?([^"]+)"?\s*=\s*"([^"]*)"`)
+	GamePathPat     = regexp.MustCompile(`(?i)^GAME\s.*"([^"]+[/\\]steamapps[/\\]common)[/\\]+([^/\\"]+)`)
+	FlatpakPat      = regexp.MustCompile(`^\w+:([\\].+)`)
+	ConnectPat      = regexp.MustCompile(`(?i)^\s*(.*)\s*(connected|disconnected|Not connected to server)\s*$`)
+	StatusPat       = regexp.MustCompile(`^#\s+\d+(?:\s+\d+)?\s+"([^"]+)".+(STEAM_\d+:\d+:\d+|BOT)`)
+	StatusServerPat = regexp.MustCompile(`^\s*Connected to (\S+:\d+)\s*$`)
 
-	ChatPat     = regexp.MustCompile(`^(?:[*](?:DEAD|SPEC)[*])?\s*(?:\([^)]+\))?\s*(.+?)\s*:\s*(?:[#]|:\s?>|:\s?<|<\s?:|>\s?:)\s*(.+?)\s*$`)
-	CvarPat     = regexp.MustCompile(`^(?:\[[^\]]+\])?"?([^"]+)"?\s*=\s*"([^"]*)"`)
-	GamePathPat = regexp.MustCompile(`(?i)^GAME\s.*"([^"]+[/\\]steamapps[/\\]common)[/\\]+([^/\\]+)`)
-	FlatpakPat  = regexp.MustCompile(`^\w+:([\\].+)`)
-	ConnectPat  = regexp.MustCompile(`(?i)^\s*(.*)\s*(connected|disconnected|Not connected to server)\s*$`)
-	StatusPat   = regexp.MustCompile(`^#\s+\d+(?:\s+\d+)?\s+"([^"]+)".+(STEAM_\d+:\d+:\d+|BOT)`)
-	// TODO: support IPv6?
-	StatusServerPat = regexp.MustCompile(`^\s*Connected to (\d+\.\d+\.\d+\.\d+:\d+)\s*$`)
+	StatusTableBegin = `# userid name uniqueid connected ping loss state rate`
+	StatusTableEnd   = `#end`
 )
 
 type X = []string
@@ -48,15 +50,12 @@ type Tnet struct {
 	Q    chan *Audio
 	stop chan struct{}
 
-	// signal to readLineStatus that `status` was exec'd
-	// and the list should be repopulated
-	resetStatus  atomic.Bool
 	statusServer atomic.Pointer[string]
 
 	app *App
 }
 
-func (t *Tnet) Exec(cmds ...[]string) error {
+func (tn *Tnet) Exec(cmds ...[]string) error {
 	if len(cmds) == 0 {
 		return nil
 	}
@@ -77,7 +76,7 @@ func (t *Tnet) Exec(cmds ...[]string) error {
 	b.WriteString("\r\n")
 	b.Seek(0, 0)
 
-	if _, err := b.WriteTo(t.Conn); err != nil {
+	if _, err := b.WriteTo(tn.Conn); err != nil {
 		return fmt.Errorf("Tnet.Exec(`%s`): %w", cmd, err)
 	}
 	return nil
@@ -164,25 +163,13 @@ func (tn *Tnet) play(au *Audio) (err error) {
 	return nil
 }
 
-func (tn *Tnet) readLineName(username string) {
-	if Env.Demo {
-		username = DemoUsername
-	}
-	tn.app.UpdateState(func(s AppState) AppState {
-		s.Presence.Username = username
-		s.Presence.Clan, s.Presence.Name = ClanName(username)
-		return s
-	})
-}
-
 func (tn *Tnet) readLineCvar(name, val string) {
 	switch name {
-	case "name":
-		tn.readLineName(val)
 	}
 }
 
 func (tn *Tnet) readLineGamePath(steamDir, gameNm string) {
+	ts := time.Now()
 	var game *GameInfo
 	for _, g := range GamesList {
 		if strings.EqualFold(g.DirName, gameNm) {
@@ -210,6 +197,7 @@ func (tn *Tnet) readLineGamePath(steamDir, gameNm string) {
 	gameDir := filepath.Join(steamDir, game.DirName)
 	if _, err := os.Stat(gameDir); err != nil {
 		Logs.Printf("readLineGamePath: Game directory `%s` doesn't exist: %s\n", gameDir, err)
+		return
 	}
 
 	tn.app.UpdateState(func(s AppState) AppState {
@@ -218,44 +206,62 @@ func (tn *Tnet) readLineGamePath(steamDir, gameNm string) {
 		s.Presence.GameIconURI = game.IconURI
 		s.Presence.GameHeroURI = game.HeroURI
 		s.Presence.GameDir = gameDir
+		s.Presence.Ts = ts
 		return s
 	})
 }
 
 func (tn *Tnet) execStatus() error {
-	tn.resetStatus.Store(true)
 	return tn.Exec(X{"status"})
 }
 
-func (tn *Tnet) checkResetStatus(s AppState) AppState {
-	if !tn.resetStatus.CompareAndSwap(true, false) {
+func (tn *Tnet) readStatusTable(conn *telnet.Conn) {
+	ts := time.Now()
+	var bots SliceSet[Profile]
+	var hums SliceSet[Profile]
+	for {
+		ln, err := tn.Conn.ReadString('\n')
+		if err != nil {
+			return
+		}
+		ln = strings.TrimSpace(ln)
+		if ln == StatusTableEnd {
+			break
+		}
+
+		m := StatusPat.FindStringSubmatch(ln)
+		if len(m) != 3 {
+			continue
+		}
+		nm, id := m[1], m[2]
+
+		if id == "BOT" {
+			bots = bots.Add(Profile{Name: nm})
+		} else {
+			p, _ := SteamProfile(tn.app.DB, steamid.NewID(id).To64().Uint64(), nm)
+			hums = hums.Add(p)
+		}
+	}
+
+	tn.app.UpdateState(func(s AppState) AppState {
+		s.Presence.Bots = bots
+		s.Presence.Humans = hums
+		s.Presence.Server = ""
+		if p := tn.statusServer.Load(); p != nil {
+			s.Presence.Server = *p
+		}
+		s.Presence.Ts = ts
 		return s
-	}
-	s.Presence.Server = ""
-	if p := tn.statusServer.Load(); p != nil {
-		s.Presence.Server = *p
-	}
-	s.Presence.Humans = s.Presence.Humans.Clear()
-	s.Presence.Bots = s.Presence.Bots.Clear()
-	return s
+	})
 }
 
 func (tn *Tnet) readLineStatusServer(addr string) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return
+	}
+	addr = host + ":" + port
 	tn.statusServer.Store(&addr)
-}
-
-func (tn *Tnet) readLineStatus(name string, id string) {
-	tn.app.UpdateState(func(s AppState) AppState {
-		s = tn.checkResetStatus(s)
-
-		if id == "BOT" {
-			s.Presence.Bots = s.Presence.Bots.Add(Profile{Name: name})
-			return s
-		}
-		p, _ := SteamProfile(tn.app.DB, steamid.NewID(id).To64().Uint64(), name)
-		s.Presence.Humans = s.Presence.Humans.Add(p)
-		return s
-	})
 }
 
 func (tn *Tnet) readLineConnect(name, status string) {
@@ -289,10 +295,6 @@ func (tn *Tnet) ignoreChat(state AppState, name string) (reason string) {
 		return ""
 	}
 
-	if host, ok := tn.hostInGame(state); ok {
-		return "host " + host + " is in game"
-	}
-
 	if state.ExcludeUsernames[name] || state.ExcludeUsernames["*"] {
 		return "excluded"
 	}
@@ -300,6 +302,15 @@ func (tn *Tnet) ignoreChat(state AppState, name string) (reason string) {
 	if !state.IncludeUsernames[name] && !state.IncludeUsernames["*"] {
 		return "not included"
 	}
+
+	if host, ok := tn.hostInGame(state); ok {
+		return "host " + host + " is in game"
+	}
+
+	if !tn.app.Limiter(name).Allow() {
+		return "rate limited"
+	}
+
 	return ""
 }
 
@@ -340,8 +351,8 @@ func (tn *Tnet) readLine(line string) {
 		return
 	}
 
-	if ln := StatusPat.FindStringSubmatch(line); len(ln) == 3 {
-		tn.readLineStatus(ln[1], ln[2])
+	if line == StatusTableBegin {
+		tn.readStatusTable(tn.Conn)
 		return
 	}
 
@@ -386,9 +397,6 @@ func (tn *Tnet) commandLoop(ctx context.Context) {
 	if err := tn.Exec(X{"bind", "backspace", `echo ` + StopWord}); err != nil {
 		Logs.Println(err)
 	}
-	if err := tn.Exec(X{"name"}); err != nil {
-		Logs.Println(err)
-	}
 	if err := tn.Exec(X{"path"}); err != nil {
 		Logs.Println(err)
 	}
@@ -412,11 +420,33 @@ func (tn *Tnet) Loop(ctx context.Context) error {
 	}
 }
 
+func retryForever[T any](ctx context.Context, maxInterval time.Duration, f func() (T, error)) (T, error) {
+	interval := 100 * time.Millisecond
+	for {
+		r, err := f()
+		if err == nil {
+			return r, nil
+		}
+		interval = time.Duration(float64(interval) * 1.5)
+		if interval > maxInterval/2 {
+			interval = randRange(maxInterval/2, maxInterval)
+		}
+		select {
+		case <-time.After(interval):
+		case <-ctx.Done():
+			return r, ctx.Err()
+		}
+	}
+}
+
 func dialTnet(ctx context.Context, app *App) (_ *Tnet, _ context.Context, cancel func(), _ error) {
-	tc, err := telnet.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", app.State().TnetPort))
+	tc, err := retryForever(ctx, 5*time.Second, func() (*telnet.Conn, error) {
+		return telnet.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", app.State().TnetPort))
+	})
 	if err != nil {
 		return nil, ctx, nil, err
 	}
+
 	ctx, cancel = context.WithCancel(ctx)
 	tn := &Tnet{
 		Q:    make(chan *Audio, 1<<10),
@@ -451,11 +481,6 @@ func startTnet(ctx context.Context, app *App) (retErr error) {
 	}
 	defer cancel()
 
-	defer app.UpdateState(func(s AppState) AppState {
-		s.Presence.InGame = true
-		return s
-	})
-
 	return tn.Loop(ctx)
 }
 
@@ -463,6 +488,8 @@ func tnet(app *App) {
 	ctx := context.Background()
 	for {
 		startTnet(ctx, app)
+		// if the server is broken (e.g. broken pipe on write), but we can connect immediately
+		// we end up just burning CPU, so always wait a little before restarting
 		time.Sleep(5 * time.Second)
 	}
 }
@@ -473,7 +500,6 @@ func recoverPanic(err *error) {
 		return
 	}
 	*err = fmt.Errorf("PANIC: %v\n%s\n", e, debug.Stack())
-	Logs.Println(*err)
 }
 
 func quote(s string) string {

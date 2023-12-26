@@ -172,7 +172,7 @@
       min-height: 5rem;
       position: relative;
       padding: 1rem;
-      text-shadow: 0 0 0.5rem #000;
+      text-shadow: 0 0 0.25rem #000;
       box-shadow: inset 0 0 2rem #000;
       gap: 1rem;
       display: flex;
@@ -193,7 +193,15 @@
     & .servers-info-badge-title {
       display: flex;
       align-items: center;
+      justify-content: center;
       gap: 0.5rem;
+
+      & .servers-info-badge-server-name {
+        max-width: 28rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+      }
     }
 
     & .servers-info-badge-icon {
@@ -204,9 +212,14 @@
 
     & .servers-info-badge-players-ctr {
       display: flex;
+      justify-content: center;
       flex-wrap: wrap;
-      gap: 1rem;
-      max-width: 32rem;
+      gap: 1rem 1.5rem;
+      width: 32rem;
+
+      & .avatar {
+        box-shadow: 0 0 0.25rem #444;
+      }
     }
   }
 

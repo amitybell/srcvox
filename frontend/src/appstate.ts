@@ -80,6 +80,7 @@ export class Environment implements main.Environment {
   demo: boolean
   initTab: string
   initSbText: string
+  tnetPort: number
 
   constructor(source?: unknown) {
     const p = sourceObject(source)
@@ -87,6 +88,7 @@ export class Environment implements main.Environment {
     this.demo = coerce(false, p.demo)
     this.initTab = coerce('', p.initTab)
     this.initSbText = coerce('', p.initSbText)
+    this.tnetPort = coerce(0, p.tnetPort)
   }
 }
 
@@ -230,6 +232,7 @@ export class AppState implements Omit<main.AppState, 'convertValues' | 'presence
   hosts: { [key: string]: boolean }
   firstVoice: string
   logLevel: string
+  rateLimit: string
 
   constructor(source?: unknown) {
     const p = sourceObject(source)
@@ -247,6 +250,7 @@ export class AppState implements Omit<main.AppState, 'convertValues' | 'presence
     this.hosts = coerce({}, p.hosts)
     this.firstVoice = coerce('', p.firstVoice)
     this.logLevel = coerce('', p.logLevel)
+    this.rateLimit = coerce('', p.rateLimit)
   }
 }
 

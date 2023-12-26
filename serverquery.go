@@ -90,6 +90,7 @@ type ServerInfo struct {
 	MaxPlayers int    `json:"maxPlayers"`
 	Region     Region `json:"region"`
 	Country    string `json:"country"`
+	Ts         time.Time
 }
 
 type MasterQuery struct {
@@ -348,6 +349,8 @@ type ServerReply struct {
 
 	Ping      time.Duration
 	Challenge int32
+
+	Ts time.Time
 }
 
 func (sr *ServerReply) decodeChallenge(r *memio.File) error {
@@ -466,7 +469,7 @@ func queryConn(conn *net.UDPConn, query interface{ Encode(io.Writer) error }, bu
 	return time.Since(pingStart), nil
 }
 
-func queryServerInfo(region Region, addr string) (_r *ServerReply, _err error) {
+func queryServerInfo(region Region, addr string) (*ServerReply, error) {
 	conn, err := dialUDP(addr)
 	if err != nil {
 		return nil, fmt.Errorf("queryServerInfo(%s): %w", addr, err)
@@ -477,7 +480,7 @@ func queryServerInfo(region Region, addr string) (_r *ServerReply, _err error) {
 
 	var challenge int32
 	for {
-		reply := &ServerReply{}
+		reply := &ServerReply{Ts: time.Now()}
 		query := &ServerQuery{Header: 'T', Payload: "Source Engine Query", Challenge: challenge}
 		ping, err := queryConn(conn, query, buf, reply)
 		switch {
@@ -519,6 +522,7 @@ func serverInfo(app *App, region Region, addr string) (ServerInfo, *ServerReply,
 		MaxPlayers: int(rep.MaxPlayers),
 		Region:     region,
 		Country:    cc,
+		Ts:         rep.Ts,
 	}
 	if Env.Demo {
 		inf.MaxPlayers = 32

@@ -2,6 +2,11 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"os"
+	"sync"
+	"time"
+
 	"github.com/amitybell/memio"
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/gopxl/beep"
@@ -9,10 +14,6 @@ import (
 	"github.com/gopxl/beep/mp3"
 	"github.com/gopxl/beep/vorbis"
 	"github.com/gopxl/beep/wav"
-	"io"
-	"os"
-	"sync"
-	"time"
 )
 
 var (
@@ -40,7 +41,7 @@ func (au *Audio) Encode(state AppState, w io.WriteSeeker, format beep.Format) (o
 		return 0, fmt.Errorf("Audio.Encode: audio seek: %w", err)
 	}
 
-	limit := state.AudioLimit
+	limit := state.AudioLimit.D
 	if au.TTS {
 		limit = 3 * time.Second
 	}
@@ -53,9 +54,9 @@ func (au *Audio) Encode(state AppState, w io.WriteSeeker, format beep.Format) (o
 	if au.Format != format {
 		stream = beep.Resample(DefaultResampleQuality, au.Format.SampleRate, format.SampleRate, au.Stream)
 	}
-	if state.AudioDelay > 0 {
-		stream = beep.Seq(beep.Silence(format.SampleRate.N(state.AudioDelay)), stream)
-		dur += state.AudioDelay
+	if state.AudioDelay.D > 0 {
+		stream = beep.Seq(beep.Silence(format.SampleRate.N(state.AudioDelay.D)), stream)
+		dur += state.AudioDelay.D
 	}
 
 	// TODO: figure out why this break audio playback

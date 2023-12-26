@@ -1,5 +1,7 @@
 package main
 
+import "time"
+
 type Presence struct {
 	InGame      bool              `json:"inGame"`
 	Error       string            `json:"error"`
@@ -15,4 +17,6 @@ type Presence struct {
 	Humans      SliceSet[Profile] `json:"humans"`
 	Bots        SliceSet[Profile] `json:"bots"`
 	Server      string            `json:"server"`
+
+	Ts time.Time
 }

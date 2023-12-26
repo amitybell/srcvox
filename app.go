@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/amitybell/memio"
@@ -27,6 +28,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"golang.org/x/time/rate"
 )
 
 const (
@@ -80,18 +82,27 @@ type App struct {
 
 	serveMux http.ServeMux
 
-	mu     sync.Mutex
-	_state AppState
-	ttsm   map[string]*piper.TTS
+	state struct {
+		p atomic.Pointer[AppState]
+		q chan Reducer
+	}
+
+	mu       sync.Mutex
+	limiters map[string]*rate.Limiter
+	ttsm     map[string]*piper.TTS
 }
 
 func NewApp(paths *Paths) *App {
 	app := &App{
-		Paths:  paths,
-		_state: DefaultAppState,
-		ttsm:   map[string]*piper.TTS{},
+		Paths:    paths,
+		ttsm:     map[string]*piper.TTS{},
+		limiters: map[string]*rate.Limiter{},
 	}
 	app.API = &API{app: app}
+
+	app.state.p.Store(&AppState{})
+	app.state.q = make(chan Reducer, 1<<10)
+	go app.reduceLoop()
 
 	var err error
 	app.listener, err = net.Listen("tcp", "127.0.0.1:0")
@@ -235,6 +246,18 @@ func (app *App) initWinConf(ctx context.Context) {
 	}
 }
 
+func (app *App) Limiter(name string) *rate.Limiter {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+
+	lim, ok := app.limiters[name]
+	if !ok {
+		lim = rate.NewLimiter(rate.Every(app.State().RateLimit.D), 1)
+		app.limiters[name] = lim
+	}
+	return lim
+}
+
 func (app *App) initWatch() {
 	WatchNotify(func(ev WatchEvent) {
 		if filepath.Base(ev.Name) == "loginusers.vdf" {
@@ -288,6 +311,7 @@ func (app *App) initPresence() {
 			p.AvatarURI = DataURI("image/jpeg", files.DemoAvatar)
 		}
 		p.Clan, p.Name = ClanName(usr.Name)
+		p.Ts = time.Now()
 		s.Presence = p
 		return s
 	})
@@ -504,22 +528,36 @@ func (app *App) Emit(name string, data any) {
 }
 
 func (app *App) State() AppState {
-	app.mu.Lock()
-	defer app.mu.Unlock()
-
-	return app._state
+	return *app.state.p.Load()
 }
 
-func (app *App) UpdateState(f func(p AppState) AppState) {
-	app.mu.Lock()
-	defer app.mu.Unlock()
+func (app *App) reduce(reduce Reducer) {
+	defer func() {
+		var err error
+		recoverPanic(&err)
+		if err != nil {
+			Logs.Error("App.reduce:", err)
+		}
+	}()
 
-	s, events := app._state.Merge(f(app._state))
-	app._state = s
+	oldState := *app.state.p.Load()
+	newState := reduce(oldState)
+	state, events := oldState.Merge(newState)
+	app.state.p.Store(&state)
 
 	for _, name := range events {
 		app.Emit(name, nil)
 	}
+}
+
+func (app *App) reduceLoop() {
+	for f := range app.state.q {
+		app.reduce(f)
+	}
+}
+
+func (app *App) UpdateState(f Reducer) {
+	app.state.q <- f
 }
 
 func (app *App) Update(props AppState) {

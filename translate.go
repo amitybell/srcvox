@@ -17,7 +17,7 @@ var (
 		"bbq": {"barbeque"},
 		"hf":  {"have fun!"},
 		"kfc": {"KFC", "kfc"},
-		"np":  {"no problem", "no worries", "no problemo", "shit happens"},
+		"np":  {"no problem", "no worries", "shit happens"},
 		"ns":  {"nice shot"},
 		"ko":  {"KO", "knock out"},
 		"wb":  {"welcome back"},
@@ -51,6 +51,7 @@ var (
 		"THX":        {"THX"},
 		"thx":        {"thanks"},
 		"wololo":     {"wololo1", "wololo2"},
+		"gingle":     {"jinglebell"},
 	}
 
 	clanNamePat = regexp.MustCompile(`^\s*((?:\*+\s*[^*]+\*+)|(?:\[+\s*[^]]+\]+)|(?:\(+\s*[^)]+\)+))\s*(.+?)\s*$`)
