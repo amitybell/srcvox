@@ -2,42 +2,26 @@
   position: relative;
   display: inline-block;
 
-  & > .menu-list {
-    padding: 0.5rem;
-  }
-
-  & > .menu-title {
+  & .menu-title {
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 0.5rem;
   }
-  &.menu-empty > .menu-title {
+
+  &.menu-empty .menu-title {
     cursor: default;
   }
+}
 
-  & > .menu-list {
-    position: absolute;
-    z-index: 1;
-    min-width: 100%;
-    width: auto;
-    margin: 0;
-    padding: 0.5rem 0 0 0;
-    list-style: none;
+.menu-list {
+  & .menu-item {
+    display: flex;
+    vertical-align: center;
+    cursor: pointer;
 
-    & .menu-item {
-      background-color: var(--menu-bg);
-      padding: 0.5rem;
-      display: flex;
-      vertical-align: center;
-      cursor: pointer;
-      &:not(:first-child) {
-        margin-top: 0.5rem;
-      }
-
-      &:hover {
-        background-color: var(--menu-bg-hover);
-      }
+    &:hover {
+      background-color: var(--menu-bg-hover);
     }
   }
 }

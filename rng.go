@@ -26,3 +26,11 @@ func randRange[T ~int8 | ~int16 | ~int32 | ~int64 | ~int](n, m T) T {
 func randElem[T any](s []T) T {
 	return s[randIntn(len(s))]
 }
+
+func shuffle[S ~[]E, E any](s S) S {
+	s = append([]E(nil), s...)
+	frand.Shuffle(len(s), func(i, j int) {
+		s[i], s[j] = s[j], s[i]
+	})
+	return s
+}

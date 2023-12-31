@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
@@ -106,7 +107,8 @@ func (tn *Tnet) playLoop(ctx context.Context) {
 }
 
 func (tn *Tnet) play(au *Audio) (err error) {
-	dir := tn.app.State().Presence.GameDir
+	state := tn.app.State()
+	dir := state.Presence.GameDir
 	if dir == "" {
 		return fmt.Errorf("Tnet.play: GameDir is not set")
 	}
@@ -145,8 +147,14 @@ func (tn *Tnet) play(au *Audio) (err error) {
 		return err
 	}
 
+	delay := state.AudioDelay.D
+	limit := state.AudioLimit.D
+	if au.TTS {
+		limit = state.AudioLimitTTS.D
+	}
+
 	fn := filepath.Join(dir, "voice_input.wav")
-	dur, err := au.EncodeToFile(tn.app.State(), fn, DefaultVoiceFormat)
+	dur, err := au.EncodeToFile(delay, limit, fn, DefaultVoiceFormat)
 	if err != nil {
 		return err
 	}
@@ -441,7 +449,14 @@ func retryForever[T any](ctx context.Context, maxInterval time.Duration, f func(
 
 func dialTnet(ctx context.Context, app *App) (_ *Tnet, _ context.Context, cancel func(), _ error) {
 	tc, err := retryForever(ctx, 5*time.Second, func() (*telnet.Conn, error) {
-		return telnet.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", app.State().TnetPort))
+		addr := fmt.Sprintf("127.0.0.1:%d", app.State().TnetPort)
+		status := "connected"
+		c, err := telnet.Dial("tcp", addr)
+		if err != nil {
+			status = err.Error()
+		}
+		Logs.Debug("Tnet: connect", slog.String("addr", addr), slog.String("status", status))
+		return c, err
 	})
 	if err != nil {
 		return nil, ctx, nil, err

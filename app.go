@@ -87,9 +87,19 @@ type App struct {
 		q chan Reducer
 	}
 
+	tmr struct {
+		reloadConfig *time.Timer
+	}
+
 	mu       sync.Mutex
 	limiters map[string]*rate.Limiter
 	ttsm     map[string]*piper.TTS
+}
+
+func newStoppedTimer() *time.Timer {
+	t := time.NewTimer(time.Hour)
+	t.Stop()
+	return t
 }
 
 func NewApp(paths *Paths) *App {
@@ -98,6 +108,7 @@ func NewApp(paths *Paths) *App {
 		ttsm:     map[string]*piper.TTS{},
 		limiters: map[string]*rate.Limiter{},
 	}
+	app.tmr.reloadConfig = newStoppedTimer()
 	app.API = &API{app: app}
 
 	app.state.p.Store(&AppState{})
@@ -259,8 +270,13 @@ func (app *App) Limiter(name string) *rate.Limiter {
 }
 
 func (app *App) initWatch() {
+	Watch(app.Paths.ConfigDir)
+
 	WatchNotify(func(ev WatchEvent) {
-		if filepath.Base(ev.Name) == "loginusers.vdf" {
+		switch {
+		case ev.Name == app.Paths.ConfigFn:
+			app.tmr.reloadConfig.Reset(2 * time.Second)
+		case filepath.Base(ev.Name) == "loginusers.vdf":
 			app.initPresence()
 		}
 	})
@@ -272,11 +288,29 @@ func (app *App) initDB() error {
 	return err
 }
 
+func (app *App) reloadConfig() {
+	for range app.tmr.reloadConfig.C {
+		cfg, err := readConfig(app.Paths.ConfigFn)
+		if err != nil {
+			Logs.Println("reloadConfig:", err)
+			continue
+		}
+		app.API.app.UpdateState(func(s AppState) AppState {
+			s.Config = cfg
+			Logs.Println("reloadConfig: ok")
+			return s
+		})
+	}
+}
+
 func (app *App) initConfig() (Config, error) {
+	go app.reloadConfig()
+
 	cfg, err := readConfig(app.Paths.ConfigFn)
 	if err != nil && !os.IsExist(err) {
 		return cfg, err
 	}
+	app.Update(AppState{Config: cfg})
 	return cfg, nil
 }
 
@@ -342,7 +376,6 @@ func (app *App) onStartup(ctx context.Context) {
 		app.FatalError(err)
 		return
 	}
-	app.Update(AppState{Config: cfg})
 
 	if err := app.initPiper(cfg.FirstVoice); err != nil {
 		app.FatalError(err)
@@ -469,7 +502,7 @@ func (app *App) serveSound(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	f := memio.NewFile(nil)
-	if _, err := au.Encode(state, f, DefaultVoiceFormat); err != nil {
+	if _, err := au.Encode(state.AudioDelay.D, state.AudioLimit.D, f, DefaultVoiceFormat); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

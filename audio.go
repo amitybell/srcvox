@@ -31,7 +31,7 @@ type Audio struct {
 	Stream beep.StreamSeeker
 }
 
-func (au *Audio) Encode(state AppState, w io.WriteSeeker, format beep.Format) (outputDuration time.Duration, err error) {
+func (au *Audio) Encode(delay, limit time.Duration, w io.WriteSeeker, format beep.Format) (outputDuration time.Duration, err error) {
 	defer recoverPanic(&err)
 
 	au.mu.Lock()
@@ -41,22 +41,19 @@ func (au *Audio) Encode(state AppState, w io.WriteSeeker, format beep.Format) (o
 		return 0, fmt.Errorf("Audio.Encode: audio seek: %w", err)
 	}
 
-	limit := state.AudioLimit.D
-	if au.TTS {
-		limit = 3 * time.Second
+	var stream beep.Streamer = au.Stream
+	if au.Format != format {
+		stream = beep.Resample(DefaultResampleQuality, au.Format.SampleRate, format.SampleRate, au.Stream)
 	}
+
 	dur := au.Dur
 	if limit > 0 && dur > limit {
 		dur = limit
 	}
 
-	var stream beep.Streamer = au.Stream
-	if au.Format != format {
-		stream = beep.Resample(DefaultResampleQuality, au.Format.SampleRate, format.SampleRate, au.Stream)
-	}
-	if state.AudioDelay.D > 0 {
-		stream = beep.Seq(beep.Silence(format.SampleRate.N(state.AudioDelay.D)), stream)
-		dur += state.AudioDelay.D
+	if delay > 0 {
+		stream = beep.Seq(beep.Silence(format.SampleRate.N(delay)), stream)
+		dur += delay
 	}
 
 	// TODO: figure out why this break audio playback
@@ -74,9 +71,9 @@ func (au *Audio) Encode(state AppState, w io.WriteSeeker, format beep.Format) (o
 	return dur, nil
 }
 
-func (au *Audio) EncodeToFile(state AppState, fn string, format beep.Format) (time.Duration, error) {
+func (au *Audio) EncodeToFile(delay, limit time.Duration, fn string, format beep.Format) (time.Duration, error) {
 	out := &memio.File{}
-	dur, err := au.Encode(state, out, format)
+	dur, err := au.Encode(delay, limit, out, format)
 	if err != nil {
 		return 0, err
 	}

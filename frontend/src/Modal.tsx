@@ -1,41 +1,17 @@
-import { ReactNode, useEffect, useRef } from 'react'
+import { ReactNode } from 'react'
 import './Modal.css'
-import { createPortal } from 'react-dom'
-import { PiXCircle as CloseIcon } from 'react-icons/pi'
+import { Modal as MModal } from '@mantine/core'
 
-interface DialogProps {
+export interface ModalProps {
   children?: ReactNode
   onClose: () => void
+  title?: string
 }
 
-function Dialog({ children, onClose }: DialogProps) {
-  const ref = useRef<HTMLDialogElement>(null)
-  useEffect(() => {
-    ref.current?.showModal()
-  }, [])
+export default function Modal({ children, onClose, title }: ModalProps) {
   return (
-    <dialog ref={ref} onClose={onClose} className="modal page-ctr">
+    <MModal onClose={onClose} opened title={title} centered size={'xl'} className="modal">
       {children}
-    </dialog>
-  )
-}
-
-export interface ModalProps extends DialogProps {}
-
-export default function Modal({ children, onClose }: ModalProps) {
-  return (
-    <div className="modal-ctr">
-      {createPortal(
-        <Dialog onClose={onClose}>
-          <form className="modal-hdr" method="dialog">
-            <button type="submit" className="modal-close-btn">
-              <CloseIcon />
-            </button>
-          </form>
-          {children}
-        </Dialog>,
-        document.body,
-      )}
-    </div>
+    </MModal>
   )
 }

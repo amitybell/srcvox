@@ -1,4 +1,5 @@
 import 'modern-normalize/modern-normalize.css'
+import '@mantine/core/styles.css'
 import './App.css'
 import 'react-toastify/dist/ReactToastify.css'
 
@@ -12,6 +13,8 @@ import Settings from './Settings'
 import { useAppError, useEnv, useGames } from './hooks/query'
 import BgVideo from './BgVideo'
 import { ToastContainer } from 'react-toastify'
+import { MantineProvider } from '@mantine/core'
+import { theme } from './theme'
 
 const tabs: Tab[] = [{ name: 'servers' }, { name: 'soundboard' }]
 
@@ -77,7 +80,9 @@ function AppBody() {
 export default function App() {
   return (
     <div id="App">
-      <AppBody />
+      <MantineProvider theme={theme} defaultColorScheme="dark">
+        <AppBody />
+      </MantineProvider>
     </div>
   )
 }

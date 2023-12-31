@@ -23,7 +23,7 @@ interface OverlayProps {
 
 function Overlay({ page, onClose }: OverlayProps) {
   return (
-    <Modal onClose={onClose}>
+    <Modal onClose={onClose} title={page}>
       {((): ReactElement => {
         switch (page) {
           case 'credits':
@@ -40,7 +40,12 @@ export default function Header({ tabs, setTab, activeTab }: HeaderProps) {
   const [overlay, setOverlay] = useState<OverlayKind | null>(null)
   const menuOpen = overlay === 'menu'
   const menuItems: MenuItemProps[] = [
-    { body: <button onClick={() => setOverlay('credits')}>Credits</button> },
+    {
+      onClick: () => {
+        setOverlay('credits')
+      },
+      body: <div>Credits</div>,
+    },
   ]
 
   return (
@@ -59,9 +64,8 @@ export default function Header({ tabs, setTab, activeTab }: HeaderProps) {
               <MenuIconClosed className="menu-icon" />
             )
           }
-          hover={false}
           open={menuOpen}
-          onToggle={() => setOverlay(overlay === 'menu' ? null : 'menu')}
+          onToggle={() => setOverlay((overlay) => (overlay === 'menu' ? null : overlay || 'menu'))}
           items={menuItems}
         />
       </header>

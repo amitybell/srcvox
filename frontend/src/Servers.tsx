@@ -64,7 +64,7 @@ async function screenshot(elem: HTMLElement | null) {
   navigator.clipboard
     .write([
       new ClipboardItem({
-        'image/png': domToBlob(elem).then((blob) => {
+        'image/png': domToBlob(elem, { width: 512 }).then((blob) => {
           toast.success('Badge copied to clipbaord')
           return blob
         }),
@@ -92,9 +92,9 @@ function ServerInfoBadge({ p, game, presence: pr }: ServerListInfoProps) {
         <img className="servers-info-badge-bg" src={mapImg.v} alt="" />
         <div className="servers-info-badge-content">
           <div className="servers-info-badge-title">
-            <span className="servers-info-badge-player-count">{players}</span>{' '}
-            <span>{players === 1 ? 'player' : 'players'} on</span>{' '}
-            <span className="servers-info-badge-server-name">{p.name}</span>{' '}
+            <span className="servers-info-badge-title-text">
+              {players} {players === 1 ? 'player' : 'players'} on {p.name}
+            </span>
             {p.restricted ? (
               <PrivateServerIcon className="servers-info-badge-icon" />
             ) : (
@@ -297,25 +297,21 @@ function GamesMenu({ games, onSelect, activeIdx, title }: GamesListProps) {
 
   return (
     <Menu
+      width="target"
       className="games-list-menu"
       open={menuOpen}
       onToggle={setMenuOpen}
-      hover={false}
       title={
         <div className="games-menu-title">
           <Game p={active} subtitle={title} />
         </div>
       }
       items={games.map((p, i) => ({
-        body: (
-          <Game
-            p={p}
-            onClick={() => {
-              onSelect(i)
-              setMenuOpen(false)
-            }}
-          />
-        ),
+        onClick: () => {
+          onSelect(i)
+          setMenuOpen(false)
+        },
+        body: <Game p={p} />,
       }))}
     />
   )

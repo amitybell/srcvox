@@ -24,7 +24,6 @@ export default function Presence() {
   return (
     <Menu
       onToggle={setOpen}
-      hover={false}
       open={open}
       indicator
       title={
@@ -39,6 +38,7 @@ export default function Presence() {
         .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()))
         .map((p) => ({
           key: p.id,
+          onClick: () => {},
           body: (
             <div className="presence-human-profile">
               <Avatar {...p} />

@@ -9,6 +9,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mantine/core": "^7.3.2",
+    "@mantine/hooks": "^7.3.2",
+    "@mantine/modals": "^7.3.2",
+    "@mantine/notifications": "^7.3.2",
+    "@mantine/vanilla-extract": "^7.3.2",
     "@tanstack/react-query": "^5.7.1",
     "modern-normalize": "^2.0.0",
     "modern-screenshot": "^4.4.36",
@@ -24,11 +29,17 @@
     "@types/react-dom": "^18.0.6",
     "@types/react-world-flags": "^1.4.5",
     "@typescript-eslint/eslint-plugin": "^6.9.1",
+    "@vanilla-extract/vite-plugin": "^3.9.3",
     "@vitejs/plugin-react": "^2.0.1",
     "eslint": "^8.52.0",
     "eslint-plugin-react": "^7.33.2",
     "eslint-plugin-react-hooks": "^4.6.0",
+    "postcss": "^8.4.32",
+    "postcss-preset-mantine": "^1.12.2",
+    "postcss-simple-vars": "^7.0.1",
+    "ts-node": "^10.9.2",
     "typescript": "^4.6.4",
+    "typescript-plugin-css-modules": "^5.0.2",
     "vite": "^3.0.7",
     "vite-plugin-eslint": "^1.8.1"
   }

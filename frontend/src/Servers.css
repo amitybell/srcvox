@@ -106,12 +106,6 @@
     }
   }
 
-  & .game-ctr {
-    width: 100%;
-    display: flex;
-    align-items: center;
-  }
-
   & .games-list-menu {
     padding: 0.5rem 0;
     min-width: 30rem;
@@ -120,9 +114,6 @@
       width: 2rem;
       height: auto;
       border-radius: var(--radius);
-    }
-    & .game-title {
-      margin-left: 1rem;
     }
 
     & .games-menu-title {
@@ -166,6 +157,7 @@
     position: relative;
     border-radius: 0.5rem;
     overflow: hidden;
+    width: 512px;
 
     & .servers-info-badge-content {
       min-width: 20rem;
@@ -191,16 +183,11 @@
     }
 
     & .servers-info-badge-title {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-
-      & .servers-info-badge-server-name {
-        max-width: 28rem;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        overflow: hidden;
+      white-space: nowrap;
+      text-align: center;
+      vertical-align: middle;
+      & > *:not(:first-child) {
+        margin-left: 0.5rem;
       }
     }
 
@@ -227,4 +214,10 @@
     margin: 0 0.5rem;
     font-size: 1.5rem;
   }
+}
+
+.game-ctr {
+  gap: 0.5em;
+  display: flex;
+  align-items: center;
 }

@@ -3,10 +3,11 @@ package main
 import (
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 var (
-	Translations = map[string][]string{
+	Translations = AltMap(map[string][]string{
 		"<3":  {"love"},
 		"i":   {"I"},
 		"im":  {"I'm"},
@@ -24,72 +25,99 @@ var (
 		"icu": {"I see you!"},
 		"gg":  {"good game"},
 		"thx": {"thanks"},
-	}
+		":)":  {""},
+		":(":  {""},
+		":d":  {""},
+		"xd":  {""},
+		"ez":  {"easy"},
+		"ftw": {"for the win"},
+		"jk":  {"just kidding"},
+		"btw": {"by the way"},
+	})
 
-	Substites = map[string][]string{
-		"ns":         {"nice shot", "goodjob", "decent"},
-		"bb":         {"bye1", "bye-ni1", "bye-ni2"},
-		"bye":        {"bye1", "bye-ni1", "bye-ni2"},
-		"glhf":       {"good luck, have fun!"},
-		"gg":         {"GG", "good game", "game", "good", "nice game", "well played"},
-		"icu":        {"I see you!", "iseeyou"},
-		"icq":        {"list", "look", "honey", "run2"},
-		"yw":         {"you're welcome!"},
-		"hacker":     {"hacker", "$name is the hacker!"},
-		"bitch":      {"bitch1", "$name is a bitch!"},
-		"hack":       {"hack", "hack the planet!"},
-		"usure":      {"I'm sure"},
-		"boxxy":      {"isboxxy", "nottrollin", "iamboxxy"},
-		"baby":       {"corner"},
-		"lol":        {"haha", "lol"},
-		"ladydecade": {"ladydecade1", "ladydecade2", "ladydecade3", "ladydecade4"},
-		"zombie":     {"zombie1", "zombie2"},
-		"dust":       {"dust1", "dust2"},
-		"drunken":    {"drunken1", "drunken2", "drunken2", "drunken4", "drunken5", "drunken6", "drunken7"},
-		"run":        {"run1", "run2"},
-		"shit":       {"shit1", "shit2", "shit3"},
-		"THX":        {"THX"},
-		"thx":        {"thanks"},
-		"wololo":     {"wololo1", "wololo2"},
-		"gingle":     {"jinglebell"},
-	}
+	Substites = AltMap(map[string][]string{
+		"ns":           {"nice shot", "goodjob", "decent"},
+		"bb":           {"bye1", "bye-ni1", "bye-ni2"},
+		"bye":          {"bye1", "bye-ni1", "bye-ni2"},
+		"glhf":         {"good luck, have fun!"},
+		"gg":           {"GG", "good game", "game", "good", "nice game", "well played"},
+		"icu":          {"I see you!", "iseeyou"},
+		"icq":          {"list", "look", "honey", "run2"},
+		"yw":           {"you're welcome!"},
+		"hacker":       {"hacker1", "$name is the hacker!"},
+		"bij,bitch":    {"bitch1", "$name is a bitch!"},
+		"hack":         {"hack", "hack the planet!"},
+		"usure":        {"I'm sure"},
+		"boxxy":        {"isboxxy", "nottrollin", "iamboxxy"},
+		"baby":         {"corner"},
+		"lol":          {"haha", "lol"},
+		"ladydecade":   {"ladydecade1", "ladydecade2", "ladydecade3", "ladydecade4"},
+		"zombie":       {"zombie1", "zombie2"},
+		"dust":         {"dust1", "dust2"},
+		"drunken":      {"drunken1", "drunken2", "drunken2", "drunken4", "drunken5", "drunken6", "drunken7"},
+		"run":          {"run1", "run2"},
+		"shit":         {"shit1", "shit2", "shit3"},
+		"THX":          {"THX"},
+		"thx":          {"thanks"},
+		"wololo":       {"wololo1", "wololo2"},
+		"gingle":       {"jinglebell"},
+		"wambulance":   {"wambulance1", "wambulance2"},
+		"happynewyear": {"newyear"},
+	})
 
 	clanNamePat = regexp.MustCompile(`^\s*((?:\*+\s*[^*]+\*+)|(?:\[+\s*[^]]+\]+)|(?:\(+\s*[^)]+\)+))\s*(.+?)\s*$`)
 )
 
+type Alt[T any] struct {
+	L []T
+	i int
+}
+
+func (a *Alt[T]) Next(def T) (v T) {
+	if a == nil || len(a.L) == 0 {
+		return def
+	}
+	v = a.L[a.i]
+	a.i = (a.i + 1) % len(a.L)
+	return v
+}
+
+func AltMap[T any](p map[string][]T) map[string]*Alt[T] {
+	q := make(map[string]*Alt[T], len(p))
+	for k, v := range p {
+		for _, k := range strings.FieldsFunc(k, commaSpace) {
+			q[k] = &Alt[T]{L: shuffle(v)}
+		}
+	}
+	return q
+}
+
+func commaSpace(r rune) bool {
+	return r == ',' || unicode.IsSpace(r)
+}
+
 func Translate(name, text string) string {
-	if v, ok := Substites[text]; ok {
-		text = randElem(v)
-	} else {
-		text = strings.ToLower(strings.TrimSpace(text))
-		if v, ok := Substites[text]; ok {
-			text = randElem(v)
+	for _, k := range []string{text, strings.ToLower(strings.TrimSpace(text))} {
+		if v, ok := Substites[k]; ok {
+			text = v.Next("")
+			break
 		}
 	}
 
-	out := strings.Fields(text)
-	for i, k := range out {
-		switch k {
+	if name == "" {
+		name = "someone"
+	}
+
+	out := strings.Fields(strings.ToLower(text))
+	for i, word := range out {
+		switch word {
 		case "$name":
-			if name != "" {
-				k = name
-			} else {
-				k = "someone"
-			}
+			word = name
 		}
-
-		v, _ := Translations[k]
-		switch len(v) {
-		case 0:
-			out[i] = k
-		case 1:
-			out[i] = v[0]
-		default:
-			out[i] = randElem(v)
-		}
+		out[i] = Translations[word].Next(word)
 	}
 
-	return strings.Join(out, " ")
+	return strings.TrimSpace(strings.Join(out, " "))
 }
 
 func ClanName(username string) (clan, name string) {

@@ -1,25 +1,19 @@
 import './Menu.css'
 import React, { ReactElement } from 'react'
 import { PiArrowFatRight as RightArrow, PiArrowFatDown as DownArrow } from 'react-icons/pi'
+import { Menu as MMenu, PopoverWidth } from '@mantine/core'
 
 export interface MenuItemProps {
+  onClick: () => void
   body: ReactElement
-}
-
-function MenuItem({ body }: MenuItemProps) {
-  return (
-    <li>
-      <div className="menu-item">{body}</div>
-    </li>
-  )
 }
 
 export interface MenuProps {
   open: boolean
   onToggle: (open: boolean) => void
-  hover: boolean
   title: ReactElement
   items: Array<MenuItemProps> | Array<MenuItemProps & { key: React.Key }>
+  width?: PopoverWidth
   className?: string
   indicator?: boolean
 }
@@ -29,27 +23,41 @@ export default function Menu({
   items,
   open,
   onToggle,
+  width,
   className,
-  hover,
   indicator,
 }: MenuProps) {
   return (
-    <div
-      className={`menu-ctr ${items.length === 0 ? 'menu-empty' : ''} ${className || ''}`}
-      onMouseEnter={hover ? () => onToggle(true) : undefined}
-      onMouseLeave={hover ? () => onToggle(false) : undefined}
-    >
-      <div className="menu-title" onClick={hover ? undefined : () => onToggle(!open)}>
-        {title}
-        {indicator && items.length !== 0 ? open ? <DownArrow /> : <RightArrow /> : null}
-      </div>
-      {open && items.length !== 0 ? (
-        <ul className="menu-list">
-          {items.map((p, i) => (
-            <MenuItem key={'key' in p ? p.key : i} body={p.body} />
-          ))}
-        </ul>
-      ) : null}
+    <div className={`menu-ctr ${className ?? ''}`}>
+      <MMenu
+        onChange={onToggle}
+        position="bottom"
+        withArrow
+        shadow="md"
+        opened={open}
+        width={width}
+      >
+        <MMenu.Target>
+          <div className="menu-title">
+            {title}
+            {indicator && items.length !== 0 ? open ? <DownArrow /> : <RightArrow /> : null}
+          </div>
+        </MMenu.Target>
+        {open && items.length !== 0 ? (
+          <MMenu.Dropdown component="div" className="menu-list">
+            {items.map((p, i) => (
+              <MMenu.Item
+                onClick={p.onClick}
+                component="div"
+                className="menu-item"
+                key={'key' in p ? p.key : i}
+              >
+                {p.body}
+              </MMenu.Item>
+            ))}
+          </MMenu.Dropdown>
+        ) : null}
+      </MMenu>
     </div>
   )
 }
