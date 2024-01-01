@@ -12,9 +12,9 @@ import {
   PiCameraDuotone as ScreenshotIcon,
 } from 'react-icons/pi'
 import Flag from 'react-world-flags'
-import { toast } from 'react-toastify'
 import Avatar from './Avatar'
 import { domToBlob } from 'modern-screenshot'
+import { notifications } from '@mantine/notifications'
 
 interface GameProps {
   p: GameInfo
@@ -65,13 +65,13 @@ async function screenshot(elem: HTMLElement | null) {
     .write([
       new ClipboardItem({
         'image/png': domToBlob(elem, { width: 512 }).then((blob) => {
-          toast.success('Badge copied to clipbaord')
+          notifications.show({ message: 'Badge copied to clipbaord' })
           return blob
         }),
       }),
     ])
     .catch((e) => {
-      toast.error(`Failed to copy badge to clipbaord: ${e}`)
+      notifications.show({ message: `Failed to copy badge to clipbaord: ${e}` })
     })
 }
 
