@@ -65,13 +65,13 @@ async function screenshot(elem: HTMLElement | null) {
     .write([
       new ClipboardItem({
         'image/png': domToBlob(elem, { width: 512 }).then((blob) => {
-          notifications.show({ message: 'Badge copied to clipbaord' })
+          notifications.show({ color: 'green', message: 'Badge copied to clipbaord' })
           return blob
         }),
       }),
     ])
     .catch((e) => {
-      notifications.show({ message: `Failed to copy badge to clipbaord: ${e}` })
+      notifications.show({ color: 'red', message: `Failed to copy badge to clipbaord: ${e}` })
     })
 }
 
