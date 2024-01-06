@@ -7,6 +7,7 @@ import (
 const (
 	SvPresenceChangeEvent = "sv.PresenceChange"
 	SvErrorChangeEvent    = "sv.ErrorChange"
+	SvServerInfoChange    = "sv.ServerInfoChange"
 )
 
 type Reducer func(p AppState) AppState

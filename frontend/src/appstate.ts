@@ -2,6 +2,37 @@ import { main } from '../wailsjs/go/models'
 
 export type Region = number
 
+type Dur = string
+
+export class Config implements Omit<main.Config, 'convertValues'> {
+  tnetPort: number
+  audioDelay: Dur
+  audioLimit: Dur
+  audioLimitTTS: Dur
+  textLimit: number
+  includeUsernames: { [key: string]: boolean }
+  excludeUsernames: { [key: string]: boolean }
+  hosts: { [key: string]: boolean }
+  firstVoice: string
+  logLevel: string
+  rateLimit: Dur
+
+  constructor(source?: Partial<Config>) {
+    const p = sourceObject(source)
+    this.tnetPort = coerce(0, p.tnetPort)
+    this.audioDelay = coerce('', p.audioDelay)
+    this.audioLimit = coerce('', p.audioLimit)
+    this.audioLimitTTS = coerce('', p.audioLimitTTS)
+    this.textLimit = coerce(0, p.textLimit)
+    this.includeUsernames = coerce({}, p.includeUsernames)
+    this.excludeUsernames = coerce({}, p.excludeUsernames)
+    this.hosts = coerce({}, p.hosts)
+    this.firstVoice = coerce('', p.firstVoice)
+    this.logLevel = coerce('', p.logLevel)
+    this.rateLimit = coerce('', p.rateLimit)
+  }
+}
+
 export class Profile implements main.Profile {
   id: number
   username: string
@@ -25,7 +56,7 @@ export class Profile implements main.Profile {
   }
 }
 
-export class ServerInfo implements main.ServerInfo {
+export class ServerInfo implements Omit<main.ServerInfo, 'convertValues'> {
   addr: string
   name: string
   players: number
@@ -37,6 +68,7 @@ export class ServerInfo implements main.ServerInfo {
   maxPlayers: number
   region: number
   country: string
+  ts: Date
 
   sortName: string
 
@@ -53,6 +85,7 @@ export class ServerInfo implements main.ServerInfo {
     this.maxPlayers = coerce(0, p.maxPlayers)
     this.region = coerce(0xff, p.region)
     this.country = coerce('', p.country)
+    this.ts = new Date(coerce('', p.ts) || '0000')
     this.sortName =
       // remove prefixes [abc] | (abc) | \W+
       naturallySortable(
@@ -138,6 +171,8 @@ export class GameInfo implements main.GameInfo {
   heroURI: string
   bgVideoURL: string
   mapImageURL: string
+  mapImageURLs: string[]
+  mapNames: string[]
 
   constructor(source?: unknown) {
     const p = sourceObject(source)
@@ -148,6 +183,8 @@ export class GameInfo implements main.GameInfo {
     this.heroURI = coerce('', p.heroURI)
     this.bgVideoURL = coerce('', p.bgVideoURL)
     this.mapImageURL = coerce('', p.mapImageURL)
+    this.mapImageURLs = coerce([], p.mapImageURLs)
+    this.mapNames = coerce([], p.mapNames)
   }
 }
 
@@ -197,6 +234,7 @@ export class Presence implements Omit<main.Presence, 'convertValues'> {
   humans: Profile[]
   bots: Profile[]
   server: string
+  ts: Date
 
   constructor(source?: unknown) {
     const p = sourceObject(source)
@@ -214,6 +252,7 @@ export class Presence implements Omit<main.Presence, 'convertValues'> {
     this.humans = coerce([], p.humans).map((p) => new Profile(p))
     this.bots = coerce([], p.bots).map((p) => new Profile(p))
     this.server = coerce('', p.server)
+    this.ts = new Date(coerce('', p.ts) || '0000')
   }
 }
 

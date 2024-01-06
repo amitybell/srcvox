@@ -1,8 +1,12 @@
 .servers-ctr {
   border-collapse: separate;
-  border-spacing: 0 0.5rem;
-  font-weight: bold;
+  border-spacing: 0;
+  font-weight: 500;
 
+  & th {
+    font-weight: 600;
+    font-size: 1rem;
+  }
   & td {
     vertical-align: center;
   }
@@ -29,13 +33,29 @@
         text-transform: uppercase;
         padding: 0 0.5rem 0.5rem 0.5rem;
         &:first-child {
-          padding-left: 0;
+          padding-left: 0.5rem;
         }
       }
     }
   }
 
   & > tbody {
+    --td-bd: 0.5rem solid rgb(0 0 0 / 0.5);
+    & > tr {
+      & > td {
+        border-top: var(--td-bd);
+        &:first-child {
+          border-left: var(--td-bd);
+        }
+        &:last-child {
+          border-right: var(--td-bd);
+        }
+      }
+      &:last-child > td {
+        border-bottom: var(--td-bd);
+      }
+    }
+
     & .servers-info-name-ctr {
       cursor: pointer;
       & svg,
@@ -220,4 +240,12 @@
   gap: 0.5em;
   display: flex;
   align-items: center;
+}
+
+button.servers-info-snap-btn {
+  padding: 0.25rem 0.5rem;
+
+  &[disabled] {
+    visibility: hidden;
+  }
 }

@@ -1,20 +1,16 @@
 import './Servers.css'
-import { ReactElement, ReactNode, useEffect, useRef, useState } from 'react'
+import { ReactElement, ReactNode, useEffect, useState } from 'react'
 import Menu from './Menu'
 import { GameInfo, Presence, ServerInfo } from './appstate'
-import { useEnv, useMapImage, usePresence, useServerInfos, useServers } from './hooks/query'
+import { useEnv, usePresence, useServerInfos, useServers } from './hooks/query'
 import { openURL } from './api'
 import {
   PiLockKeyOpenFill as PrivateServerIcon,
   PiArrowFatLinesRightFill as ConnectIcon,
   PiArrowFatRight as RightArrow,
   PiArrowFatDown as DownArrow,
-  PiCameraDuotone as ScreenshotIcon,
 } from 'react-icons/pi'
 import Flag from 'react-world-flags'
-import Avatar from './Avatar'
-import { domToBlob } from 'modern-screenshot'
-import { notifications } from '@mantine/notifications'
 
 interface GameProps {
   p: GameInfo
@@ -52,67 +48,6 @@ function ServerListInfoIconCell({
         src={src || `${game.mapImageURL}&map=${p.map}`}
         onLoad={onLoad}
       />
-    </div>
-  )
-}
-
-async function screenshot(elem: HTMLElement | null) {
-  if (!elem) {
-    return
-  }
-
-  navigator.clipboard
-    .write([
-      new ClipboardItem({
-        'image/png': domToBlob(elem, { width: 512 }).then((blob) => {
-          notifications.show({ color: 'green', message: 'Badge copied to clipbaord' })
-          return blob
-        }),
-      }),
-    ])
-    .catch((e) => {
-      notifications.show({ color: 'red', message: `Failed to copy badge to clipbaord: ${e}` })
-    })
-}
-
-function ServerInfoBadge({ p, game, presence: pr }: ServerListInfoProps) {
-  const badgeRef = useRef<HTMLDivElement | null>(null)
-  const mapImg = useMapImage(game.id, p.map)
-
-  if (mapImg.type !== 'ok') {
-    return null
-  }
-
-  const players = p.players
-  const humans = pr.server === p.addr ? pr.humans : []
-
-  return (
-    <div className="servers-info-badge-ctr">
-      <div className="servers-info-badge" ref={badgeRef}>
-        <img className="servers-info-badge-bg" src={mapImg.v} alt="" />
-        <div className="servers-info-badge-content">
-          <div className="servers-info-badge-title">
-            <span className="servers-info-badge-title-text">
-              {players} {players === 1 ? 'player' : 'players'} on {p.name}
-            </span>
-            {p.restricted ? (
-              <PrivateServerIcon className="servers-info-badge-icon" />
-            ) : (
-              <Flag className="servers-info-badge-icon" code={p.country} />
-            )}
-          </div>
-          {humans.length ? (
-            <div className="servers-info-badge-players-ctr">
-              {humans.map((p, i) => (
-                <Avatar key={p.id || i} {...p} />
-              ))}
-            </div>
-          ) : null}
-        </div>
-      </div>
-      <button className="servers-info-badge-btn" onClick={() => screenshot(badgeRef.current)}>
-        <ScreenshotIcon />
-      </button>
     </div>
   )
 }
@@ -195,7 +130,6 @@ function ServerListInfo({ p, game, presence }: ServerListInfoProps) {
                 ))}
               </tbody>
             </table>
-            <ServerInfoBadge p={p} game={game} presence={presence} />
           </td>
         </tr>
       ) : null}
@@ -203,9 +137,9 @@ function ServerListInfo({ p, game, presence }: ServerListInfoProps) {
   )
 }
 
-type OrderBy = 'players'
+export type OrderBy = 'players'
 
-function orderBy(o: OrderBy): (a: ServerInfo, b: ServerInfo) => boolean {
+export function orderBy(o: OrderBy): (a: ServerInfo, b: ServerInfo) => boolean {
   switch (o) {
     case 'players':
       return ServerInfo.orderByPlayers
@@ -230,7 +164,7 @@ function ServerList({ gameID, gameIdx, games, onGameSelect }: ServerListProps) {
     if (env.type !== 'ok' || !env.v.demo) {
       return
     }
-    const n = 3000
+    const n = 10000
     if (refresh !== n) {
       setRefresh(n)
     }

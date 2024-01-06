@@ -6,6 +6,10 @@ export function AppAddr() {
   return window['go']['main']['API']['AppAddr']();
 }
 
+export function Config() {
+  return window['go']['main']['API']['Config']();
+}
+
 export function Env() {
   return window['go']['main']['API']['Env']();
 }

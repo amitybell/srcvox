@@ -4,6 +4,8 @@ import {main} from '../models';
 
 export function AppAddr():Promise<string>;
 
+export function Config():Promise<main.Config>;
+
 export function Env():Promise<main.Environment>;
 
 export function Error():Promise<main.AppError>;

@@ -17,6 +17,5 @@ type Presence struct {
 	Humans      SliceSet[Profile] `json:"humans"`
 	Bots        SliceSet[Profile] `json:"bots"`
 	Server      string            `json:"server"`
-
-	Ts time.Time
+	Ts          time.Time         `json:"ts"`
 }

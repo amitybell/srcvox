@@ -79,18 +79,18 @@ func (r Region) String() string {
 }
 
 type ServerInfo struct {
-	Addr       string `json:"addr"`
-	Name       string `json:"name"`
-	Players    int    `json:"players"`
-	Bots       int    `json:"bots"`
-	Restricted bool   `json:"restricted"`
-	PingMs     int    `json:"ping"`
-	Map        string `json:"map"`
-	Game       string `json:"game"`
-	MaxPlayers int    `json:"maxPlayers"`
-	Region     Region `json:"region"`
-	Country    string `json:"country"`
-	Ts         time.Time
+	Addr       string    `json:"addr"`
+	Name       string    `json:"name"`
+	Players    int       `json:"players"`
+	Bots       int       `json:"bots"`
+	Restricted bool      `json:"restricted"`
+	PingMs     int       `json:"ping"`
+	Map        string    `json:"map"`
+	Game       string    `json:"game"`
+	MaxPlayers int       `json:"maxPlayers"`
+	Region     Region    `json:"region"`
+	Country    string    `json:"country"`
+	Ts         time.Time `json:"ts"`
 }
 
 type MasterQuery struct {
@@ -502,7 +502,7 @@ func serverInfo(app *App, region Region, addr string) (ServerInfo, *ServerReply,
 	}
 
 	key := fmt.Sprintf("/serverInfo/%s", addr)
-	rep, err := CacheTTL(app.DB, maxAge, key, 1, func() (*ServerReply, error) {
+	rep, err := CacheTTL(app.DB, maxAge, key, 2, func() (*ServerReply, error) {
 		return queryServerInfo(region, addr)
 	})
 	if err != nil {

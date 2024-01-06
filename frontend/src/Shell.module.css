@@ -1,0 +1,61 @@
+:root {
+  --shell-height: 100vh;
+  --head-height: 6rem;
+  --side-width: 4rem;
+  --body-height: calc(var(--shell-height) - var(--head-height));
+  --side-height: var(--body-height);
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: var(--side-width) 1fr;
+  grid-template-rows: var(--head-height) 1fr;
+  grid-template-areas:
+    'side body'
+    'side body';
+  height: var(--shell-height);
+  overflow: hidden;
+  margin: 0 auto;
+  gap: 0 0.5rem;
+}
+
+.head {
+  grid-area: head;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  padding-top: var(--gutter-size);
+}
+
+.side,
+.body {
+  padding-top: calc(var(--gutter-size) * 1.5);
+  padding-bottom: calc(var(--gutter-size) * 1.5);
+}
+
+.side {
+  grid-area: side;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: var(--gutter-size);
+  background-color: rgb(10 0 0 / 0.65);
+  box-shadow: 0.25rem 0px 1rem 0px rgba(0, 0, 0, 0.75);
+
+  & .presenceAvatar {
+    margin-top: auto;
+  }
+}
+
+.body {
+  grid-area: body;
+  overflow: auto;
+  padding-left: calc(var(--gutter-size) / 2);
+  padding-right: var(--gutter-size);
+}
+
+.foot {
+}

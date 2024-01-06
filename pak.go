@@ -2,12 +2,14 @@ package main
 
 import (
 	"fmt"
-	"git.lubar.me/ben/valve/vpk"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
+
+	"git.lubar.me/ben/valve/vpk"
 )
 
 var (
@@ -17,6 +19,8 @@ var (
 	}{
 		ents: map[pakKey]pakEnt{},
 	}
+
+	_ fs.ReadDirFS = (*PakFS)(nil)
 )
 
 func getPakFS(game *GameInfo, libDir string) (*PakFS, error) {
@@ -53,6 +57,30 @@ func GetPakFS(game *GameInfo) (*PakFS, error) {
 	return nil, fmt.Errorf("No paks found for `%s`: %v", game.Title, err)
 }
 
+type PakDirEntry struct {
+	Fn   string
+	Mode fs.FileMode
+	Inf  fs.FileInfo
+}
+
+func (p *PakDirEntry) Name() string { return p.Fn }
+
+func (p *PakDirEntry) IsDir() bool { return p.Type().IsDir() }
+
+func (p *PakDirEntry) Type() fs.FileMode {
+	if p.Mode == 0 {
+		return fs.ModeIrregular
+	}
+	return p.Mode
+}
+
+func (p *PakDirEntry) Info() (fs.FileInfo, error) {
+	if p.Inf == nil {
+		return nil, fs.ErrNotExist
+	}
+	return p.Inf, nil
+}
+
 type pakKey struct {
 	Dir string
 	Pfx string
@@ -76,7 +104,8 @@ func (pf *PakFile) String() string {
 	return pf.Name()
 }
 
-func (pf *PakFile) Read(p []byte) (int, error) {
+func (pf *PakFile) Read(p []byte) (n int, err error) {
+	recoverPanic(&err)
 	return pf.rc.Read(p)
 }
 
@@ -133,6 +162,50 @@ func (p *PakFS) Open(name string) (fs.File, error) {
 		return f, nil
 	}
 	return p.openPak(name)
+}
+
+func (p *PakFS) readDirOS(name string) ([]fs.DirEntry, error) {
+	if Env.Demo {
+		return nil, nil
+	}
+	if p.Dir == "" {
+		return nil, fs.ErrNotExist
+	}
+	fn := filepath.Join(p.Dir, filepath.FromSlash(name))
+	return os.ReadDir(fn)
+}
+
+func (p *PakFS) readDirPak(name string) ([]fs.DirEntry, error) {
+	pfx := filepath.ToSlash(name) + "/"
+	ents := make([]fs.DirEntry, 0, len(p.ents))
+	for _, f := range p.ents {
+		if !strings.HasPrefix(f.Name(), pfx) {
+			continue
+		}
+		ents = append(ents, &PakDirEntry{
+			Fn: f.Name(),
+		})
+	}
+	return ents, nil
+}
+
+func (p *PakFS) ReadDir(name string) ([]fs.DirEntry, error) {
+	name = filepath.ToSlash(name)
+	seen := map[string]bool{}
+	var ents []fs.DirEntry
+
+	osEnts, _ := p.readDirOS(name)
+	pakEnts, _ := p.readDirPak(name)
+	for _, dl := range [][]fs.DirEntry{osEnts, pakEnts} {
+		for _, de := range dl {
+			if seen[de.Name()] {
+				continue
+			}
+			seen[de.Name()] = true
+			ents = append(ents, de)
+		}
+	}
+	return ents, nil
 }
 
 func NewPakFS(dir, pfx string) (*PakFS, error) {

@@ -8,7 +8,7 @@ function stringify(v: unknown): unknown {
     return v.map(stringify)
   }
   const o = v as { toLogString?: () => string }
-  if (o !== null && typeof o.toLogString === 'function') {
+  if (o != null && typeof o.toLogString === 'function') {
     return o.toLogString()
   }
   try {

@@ -63,6 +63,7 @@ var (
 		"gingle":          {"jinglebell"},
 		"wambulance":      {"wambulance1", "wambulance2"},
 		"happynewyear":    {"newyear"},
+		"lying":           {"lying1", "bjork1"},
 	})
 
 	clanNamePat = regexp.MustCompile(`^\s*((?:\*+\s*[^*]+\*+)|(?:\[+\s*[^]]+\]+)|(?:\(+\s*[^)]+\)+))\s*(.+?)\s*$`)

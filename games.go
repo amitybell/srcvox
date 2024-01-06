@@ -54,6 +54,28 @@ func (g *GameInfo) OpenMapImage(name string) (fs.File, error) {
 	return g.OpenFile(path.Join(g.MapImageDir, name+".png"))
 }
 
+func (g *GameInfo) ReadMapNames() ([]string, error) {
+	pfs, err := GetPakFS(g)
+	if err != nil {
+		return nil, err
+	}
+
+	names := []string{}
+	ents, err := fs.ReadDir(pfs, g.MapImageDir)
+	if err != nil && len(ents) == 0 {
+		return nil, err
+	}
+
+	for _, de := range ents {
+		nm := path.Base(de.Name())
+		ext := path.Ext(nm)
+		if ext == ".png" {
+			names = append(names, nm[:len(nm)-len(ext)])
+		}
+	}
+	return names, nil
+}
+
 type GameImageKind string
 
 const (
@@ -62,17 +84,19 @@ const (
 )
 
 type GameInfo struct {
-	ID          uint64 `json:"id"`
-	Title       string `json:"title"`
-	DirName     string `json:"dirName"`
-	IconURI     string `json:"iconURI"`
-	HeroURI     string `json:"heroURI"`
-	MapImageDir string
-	MapImageURL string `json:"mapImageURL"`
-	BgVideoURL  string `json:"bgVideoURL"`
-	BgVideoFn   string
-	PakDir      string
-	PakPfx      string
+	ID           uint64 `json:"id"`
+	Title        string `json:"title"`
+	DirName      string `json:"dirName"`
+	IconURI      string `json:"iconURI"`
+	HeroURI      string `json:"heroURI"`
+	MapImageDir  string
+	MapImageURL  string   `json:"mapImageURL"`
+	BgVideoURL   string   `json:"bgVideoURL"`
+	MapNames     []string `json:"mapNames"`
+	MapImageURLs []string `json:"mapImageURLs"`
+	BgVideoFn    string
+	PakDir       string
+	PakPfx       string
 }
 
 func ReadGameImage(id uint64, kind GameImageKind) (mime string, _ []byte, _ error) {

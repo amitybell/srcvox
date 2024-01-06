@@ -225,6 +225,10 @@ func (tn *Tnet) execStatus() error {
 
 func (tn *Tnet) readStatusTable(conn *telnet.Conn) {
 	ts := time.Now()
+	addr := ""
+	if p := tn.statusServer.Load(); p != nil {
+		addr = *p
+	}
 	var bots SliceSet[Profile]
 	var hums SliceSet[Profile]
 	for {
@@ -250,14 +254,15 @@ func (tn *Tnet) readStatusTable(conn *telnet.Conn) {
 			hums = hums.Add(p)
 		}
 	}
-
 	tn.app.UpdateState(func(s AppState) AppState {
+		if s.Presence.Server == addr &&
+			s.Presence.Bots.Equal(bots) &&
+			s.Presence.Humans.Equal(hums) {
+			return s
+		}
 		s.Presence.Bots = bots
 		s.Presence.Humans = hums
-		s.Presence.Server = ""
-		if p := tn.statusServer.Load(); p != nil {
-			s.Presence.Server = *p
-		}
+		s.Presence.Server = addr
 		s.Presence.Ts = ts
 		return s
 	})

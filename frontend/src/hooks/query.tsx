@@ -1,11 +1,12 @@
 import {
   QueryFunction,
   UndefinedInitialDataOptions,
+  useInfiniteQuery,
   useQueries,
   useQuery,
   UseQueryResult,
 } from '@tanstack/react-query'
-import { ReactElement, useId } from 'react'
+import { ReactElement, useEffect, useId, useMemo, useRef, useState } from 'react'
 import Err from '../Error'
 import {
   AppError,
@@ -19,9 +20,11 @@ import {
   ServerInfo,
   Region,
   Profile,
+  Config,
 } from '../appstate'
 import { app, useAppEvent } from '../api'
 import Spinner from '../Spinner'
+import deepEqual from 'deep-equal'
 
 export type QResult<T> =
   | {
@@ -62,30 +65,48 @@ function qResult<T>({ isLoading, refetch, error, data }: UseQueryResult<T, Error
   return { type: 'ok', v: data, refetch }
 }
 
+function eq(a: unknown, b: unknown): boolean {
+  return deepEqual(a, b, { strict: true })
+}
+
+export function useMemoEq<T, U>(create: (prevVal: T | null, prevDeps: U | null) => T, deps: U): T {
+  const ref = useRef<{ deps: U | null; val: T | null }>({ deps: null, val: null })
+  if (!ref.current.val || !eq(ref.current.deps, deps)) {
+    const { deps: prevDeps, val: prevVal } = ref.current
+    ref.current.val = create(prevVal, prevDeps)
+    ref.current.deps = deps
+  }
+  return ref.current.val
+}
+
 export function useData<T, U>(
   key: string | string[],
   queryFn: QueryFunction<U>,
   select: (data: U) => T,
   extraOptions: Omit<UndefinedInitialDataOptions<U>, 'queryKey' | 'queryFn'> = {},
 ): QResult<T> {
-  const opts = {
+  const r = useQuery({
     ...extraOptions,
     queryKey: typeof key === 'string' ? [key] : key,
     queryFn,
     select,
-  }
-  return qResult(useQuery(opts))
+  })
+  return useMemoEq(() => qResult(r), [key, r])
 }
 
 export function useFetchDataURI(
   key: string | string[],
-  url: string,
+  url: string | undefined | null,
   params: Record<string, string> = {},
   extraOptions: Omit<UndefinedInitialDataOptions<string>, 'queryKey' | 'queryFn'> = {},
 ): QResult<string> {
   return useData(
     key,
     async ({ signal }) => {
+      if (!url) {
+        throw new Error('Invalid URL')
+      }
+
       const q = new URLSearchParams()
       for (const [k, v] of Object.entries(params)) {
         q.set(k, v)
@@ -157,6 +178,10 @@ export function useAppState(): QResult<AppState> {
   return useData('app.State', app.State, (p) => new AppState(p))
 }
 
+export function useConfig(): QResult<Config> {
+  return useData('app.Config', app.Config, (p) => new Config(p))
+}
+
 export function useAppError(): QResult<AppError> {
   const err = useData('app.Error', app.Error, (p) => new AppError(p))
   useAppEvent('sv.ErrorChange', () => {
@@ -167,25 +192,12 @@ export function useAppError(): QResult<AppError> {
 
 export function usePresence(): QResult<Presence> {
   const pr = useData('app.Presence', app.Presence, (p) => new Presence(p))
-  useAppEvent('sv.PresenceChange', () => {
-    pr.refetch()
-  })
+  useAppEvent('sv.PresenceChange', pr.refetch)
   return pr
 }
 
 export function useEnv(): QResult<Environment> {
   return useData('app.Env', app.Env, (p) => new Environment(p))
-}
-
-export function useServerInfo(region: Region, addr: string, refresh: number): QResult<ServerInfo> {
-  return useData(
-    `app.ServerInfo(${addr})`,
-    () => app.ServerInfo(region, addr),
-    (p) => new ServerInfo(p),
-    {
-      refetchInterval: refresh > 0 ? refresh : false,
-    },
-  )
 }
 
 export function useServerInfos(
@@ -201,6 +213,15 @@ export function useServerInfos(
       refetchInterval: refresh > 0 ? refresh : undefined,
     })),
   })
+
+  const pr = usePresence()
+  useEffect(() => {
+    if (pr.type !== 'ok' || !pr.v.server) {
+      return
+    }
+    res.find((p) => p.data?.addr === pr.v.server)?.refetch()
+  }, [res, pr])
+
   return res
     .map((p) => {
       const r = qResult(p)

@@ -2,7 +2,7 @@ package main
 
 import (
 	"errors"
-	"strconv"
+	"fmt"
 )
 
 var (
@@ -27,6 +27,10 @@ func (a *API) State() AppState {
 	return a.app.State()
 }
 
+func (a *API) Config() Config {
+	return a.app.State().Config
+}
+
 func (a *API) Sounds() []SoundInfo {
 	return SoundsList
 }
@@ -41,10 +45,15 @@ func (a *API) Games() []GameInfo {
 		srvURL = "http://" + a.app.listener.Addr().String()
 	}
 	games := make([]GameInfo, len(GamesList))
-	for i, _ := range GamesList {
+	for i := range GamesList {
 		g := *GamesList[i]
-		g.BgVideoURL = srvURL + "/app.bgvideo?id=" + strconv.FormatUint(g.ID, 10)
-		g.MapImageURL = srvURL + "/app.mapimage?id=" + strconv.FormatUint(g.ID, 10)
+		g.BgVideoURL = fmt.Sprintf("%s/app.bgvideo?id=%d", srvURL, g.ID)
+		g.MapImageURL = fmt.Sprintf("%s/app.mapimage?id=%d", srvURL, g.ID)
+		g.MapNames, _ = g.ReadMapNames()
+		g.MapImageURLs = make([]string, len(g.MapNames))
+		for i, nm := range g.MapNames {
+			g.MapImageURLs[i] = fmt.Sprintf("%s/app.mapimage?id=%d&map=%s", srvURL, g.ID, nm)
+		}
 		games[i] = g
 	}
 	return games
