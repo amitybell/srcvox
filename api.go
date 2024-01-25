@@ -72,7 +72,7 @@ func (a *API) Env() Environment {
 }
 
 func (a *API) Servers(gameID uint64) (map[string]Region, error) {
-	return serverList(a.app.DB, gameID)
+	return serverList(a.app, gameID)
 }
 
 func (a *API) ServerInfo(region Region, addr string) (ServerInfo, error) {

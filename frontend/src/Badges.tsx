@@ -82,11 +82,13 @@ export function Badge({ srv, game, pr }: BadgeProps) {
             {players} {players === 1 ? 'player' : 'players'}
           </span>
 
-          {srv.name.split(/(?:\s*[|]+\s*)|(?:\s+[-]\s+)/).map((s, i) => (
-            <span key={i} className={cls.tag}>
-              {s}
-            </span>
-          ))}
+          <span className={cls.titleTags}>
+            {srv.name.split(/(?:\s*[|]+\s*)|(?:\s+[-]\s+)/).map((s, i) => (
+              <span key={i} className={cls.tag}>
+                {s}
+              </span>
+            ))}
+          </span>
 
           <span className={`${cls.tag} ${cls.compact}`}>
             {srv.restricted ? (

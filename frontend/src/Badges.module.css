@@ -39,8 +39,10 @@
   align-items: center;
   justify-content: center;
   white-space: nowrap;
+  min-width: 0;
   border-radius: 0.25rem;
   overflow: hidden;
+  flex-shrink: 0;
   font-family: sans-serif;
   font-size: 0.875rem;
   padding: 0;
@@ -51,6 +53,14 @@
   &.compact {
     border-width: 0.125rem;
   }
+}
+
+.titleTags {
+  display: inline-flex;
+  gap: 0.5rem;
+  white-space: nowrap;
+  max-width: 25rem;
+  overflow-x: hidden;
 }
 
 .content {

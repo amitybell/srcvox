@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	DefaultResampleQuality = 1
+	DefaultResampleQuality = 4
 )
 
 type Audio struct {

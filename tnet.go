@@ -294,8 +294,8 @@ func (tn *Tnet) readLineConnect(name, status string) {
 
 func (tn *Tnet) hostInGame(state AppState) (string, bool) {
 	for _, p := range state.Presence.Humans.Slice() {
-		if state.Hosts[p.Name] {
-			return p.Name, true
+		if state.Hosts[p.Username] {
+			return p.Username, true
 		}
 	}
 	return "", false
@@ -312,12 +312,12 @@ func (tn *Tnet) ignoreChat(state AppState, name string) (reason string) {
 		return "excluded"
 	}
 
-	if !state.IncludeUsernames[name] && !state.IncludeUsernames["*"] {
-		return "not included"
-	}
-
 	if host, ok := tn.hostInGame(state); ok {
 		return "host " + host + " is in game"
+	}
+
+	if !state.IncludeUsernames[name] && !state.IncludeUsernames["*"] {
+		return "not included"
 	}
 
 	if !tn.app.Limiter(name).Allow() {

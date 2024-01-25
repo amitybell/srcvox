@@ -56,7 +56,7 @@ var (
 		"dust":            {"dust1", "dust2"},
 		"drunken":         {"drunken1", "drunken2", "drunken2", "drunken4", "drunken5", "drunken6", "drunken7"},
 		"run":             {"run1", "run2"},
-		"shit":            {"shit1", "shit2", "shit3"},
+		"shit":            {"shit1", "shit2", "shit3", "shit4"},
 		"THX":             {"THX"},
 		"thx":             {"thanks"},
 		"wololo":          {"wololo1", "wololo2"},
@@ -64,6 +64,13 @@ var (
 		"wambulance":      {"wambulance1", "wambulance2"},
 		"happynewyear":    {"newyear"},
 		"lying":           {"lying1", "bjork1"},
+		"lala":            {"daria1"},
+		"shallow":         {"daria2"},
+		"wow":             {"daria3"},
+		"nmchance":        {"daria4"},
+		"killyou":         {"daria5"},
+		"shootme":         {"daria6"},
+		"tyvm":            {"daria7"},
 	})
 
 	clanNamePat = regexp.MustCompile(`^\s*((?:\*+\s*[^*]+\*+)|(?:\[+\s*[^]]+\]+)|(?:\(+\s*[^)]+\)+))\s*(.+?)\s*$`)

@@ -271,7 +271,7 @@ func readLoginUsers(db *DB, lib *LibFS) ([]*SteamUser, error) {
 	for i, _ := range users {
 		users[i].lib = lib
 	}
-	if err != nil {
+	if err != nil && !errors.Is(err, ErrStale) {
 		return users, fmt.Errorf("readloginUsers: %s: %w", fn, err)
 	}
 	return users, nil
@@ -346,13 +346,13 @@ type Profile struct {
 
 func SteamProfile(db *DB, userID uint64, username string) (Profile, error) {
 	if userID == 0 {
-		return Profile{}, fmt.Errorf("Invalid userID: %d", userID)
+		return Profile{}, fmt.Errorf("SteamProfile: Invalid userID: %d", userID)
 	}
 
 	ttl := 2 * time.Hour
 	ver := 1
 	dest := fmt.Sprintf("https://steamcommunity.com/profiles/%d?xml=1", userID)
-	return CacheTTL(db, ttl, dest, ver, func() (p Profile, _ error) {
+	profile, err := CacheTTL(db, ttl, dest, ver, func() (p Profile, _ error) {
 		defer func() {
 			p.Clan, p.Name = ClanName(p.Username)
 		}()
@@ -389,4 +389,8 @@ func SteamProfile(db *DB, userID uint64, username string) (Profile, error) {
 
 		return p, nil
 	})
+	if err != nil && !errors.Is(err, ErrStale) {
+		return profile, fmt.Errorf("SteamProfile: %w", err)
+	}
+	return profile, nil
 }

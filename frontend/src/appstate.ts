@@ -4,35 +4,6 @@ export type Region = number
 
 type Dur = string
 
-export class Config implements Omit<main.Config, 'convertValues'> {
-  tnetPort: number
-  audioDelay: Dur
-  audioLimit: Dur
-  audioLimitTTS: Dur
-  textLimit: number
-  includeUsernames: { [key: string]: boolean }
-  excludeUsernames: { [key: string]: boolean }
-  hosts: { [key: string]: boolean }
-  firstVoice: string
-  logLevel: string
-  rateLimit: Dur
-
-  constructor(source?: Partial<Config>) {
-    const p = sourceObject(source)
-    this.tnetPort = coerce(0, p.tnetPort)
-    this.audioDelay = coerce('', p.audioDelay)
-    this.audioLimit = coerce('', p.audioLimit)
-    this.audioLimitTTS = coerce('', p.audioLimitTTS)
-    this.textLimit = coerce(0, p.textLimit)
-    this.includeUsernames = coerce({}, p.includeUsernames)
-    this.excludeUsernames = coerce({}, p.excludeUsernames)
-    this.hosts = coerce({}, p.hosts)
-    this.firstVoice = coerce('', p.firstVoice)
-    this.logLevel = coerce('', p.logLevel)
-    this.rateLimit = coerce('', p.rateLimit)
-  }
-}
-
 export class Profile implements main.Profile {
   id: number
   username: string
@@ -256,33 +227,27 @@ export class Presence implements Omit<main.Presence, 'convertValues'> {
   }
 }
 
-export class AppState implements Omit<main.AppState, 'convertValues' | 'presence'> {
-  lastUpdate: string
-  addr: string
-  presence: Presence
-  error: AppError
+export class Config implements Omit<main.Config, 'convertValues'> {
   tnetPort: number
-  audioDelay: number
-  audioLimit: number
-  audioLimitTTS: number
+  audioDelay: Dur
+  audioLimit: Dur
+  audioLimitTTS: Dur
   textLimit: number
   includeUsernames: { [key: string]: boolean }
   excludeUsernames: { [key: string]: boolean }
   hosts: { [key: string]: boolean }
   firstVoice: string
   logLevel: string
-  rateLimit: string
+  rateLimit: Dur
+  serverListMaxAge: Dur
+  serverInfoMaxAge: Dur
 
-  constructor(source?: unknown) {
+  constructor(source?: Partial<main.Config>) {
     const p = sourceObject(source)
-    this.lastUpdate = coerce('', p.lastUpdate)
-    this.addr = coerce('', p.addr)
-    this.presence = new Presence(p.presence)
-    this.error = new AppError(p.error)
     this.tnetPort = coerce(0, p.tnetPort)
-    this.audioDelay = coerce(0, p.audioDelay)
-    this.audioLimit = coerce(0, p.audioLimit)
-    this.audioLimitTTS = coerce(0, p.audioLimitTTS)
+    this.audioDelay = coerce('', p.audioDelay)
+    this.audioLimit = coerce('', p.audioLimit)
+    this.audioLimitTTS = coerce('', p.audioLimitTTS)
     this.textLimit = coerce(0, p.textLimit)
     this.includeUsernames = coerce({}, p.includeUsernames)
     this.excludeUsernames = coerce({}, p.excludeUsernames)
@@ -290,6 +255,25 @@ export class AppState implements Omit<main.AppState, 'convertValues' | 'presence
     this.firstVoice = coerce('', p.firstVoice)
     this.logLevel = coerce('', p.logLevel)
     this.rateLimit = coerce('', p.rateLimit)
+    this.serverListMaxAge = coerce('', p.serverListMaxAge)
+    this.serverInfoMaxAge = coerce('', p.serverInfoMaxAge)
+  }
+}
+
+export class AppState extends Config implements Omit<main.AppState, 'convertValues' | 'presence'> {
+  lastUpdate: string
+  addr: string
+  presence: Presence
+  error: AppError
+
+  constructor(source?: Partial<main.AppState>) {
+    super(source)
+
+    const p = sourceObject(source)
+    this.lastUpdate = coerce('', p.lastUpdate)
+    this.addr = coerce('', p.addr)
+    this.presence = new Presence(p.presence)
+    this.error = new AppError(p.error)
   }
 }
 

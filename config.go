@@ -9,7 +9,7 @@ import (
 
 var (
 	DefaultConfig = Config{
-		AudioDelay:    Dur{D: 500 * time.Millisecond},
+		AudioDelay:    Dur{D: 250 * time.Millisecond},
 		AudioLimit:    Dur{D: 10 * time.Second},
 		AudioLimitTTS: Dur{D: 3 * time.Second},
 		TextLimit:     64,
@@ -19,8 +19,10 @@ var (
 			}
 			return 31173
 		}(),
-		FirstVoice: "jenny",
-		RateLimit:  Dur{D: 5 * time.Second},
+		FirstVoice:       "jenny",
+		RateLimit:        Dur{D: 5 * time.Second},
+		ServerListMaxAge: Dur{1 * time.Hour},
+		ServerInfoMaxAge: Dur{1 * time.Minute},
 	}
 )
 
@@ -36,6 +38,8 @@ type Config struct {
 	FirstVoice       string          `json:"firstVoice"`
 	LogLevel         string          `json:"logLevel"`
 	RateLimit        Dur             `json:"rateLimit"`
+	ServerListMaxAge Dur             `json:"serverListMaxAge"`
+	ServerInfoMaxAge Dur             `json:"serverInfoMaxAge"`
 }
 
 func (c Config) Merge(p Config) Config {
@@ -68,6 +72,12 @@ func (c Config) Merge(p Config) Config {
 	}
 	if p.RateLimit.D > 0 {
 		c.RateLimit = p.RateLimit
+	}
+	if p.ServerListMaxAge.D > 0 {
+		c.ServerListMaxAge = p.ServerListMaxAge
+	}
+	if p.ServerInfoMaxAge.D > 0 {
+		c.ServerInfoMaxAge = p.ServerInfoMaxAge
 	}
 	return c
 }

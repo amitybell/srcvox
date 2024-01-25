@@ -12,6 +12,7 @@ import (
 
 var (
 	ErrNilDB = errors.New("Use of uninitialized DB")
+	ErrStale = errors.New("Stale")
 )
 
 type DB struct {
@@ -83,13 +84,17 @@ func (ent CacheEntry[T]) CheckMtime(mtime time.Time, ver int) bool {
 }
 
 func CacheTTL[T any](db *DB, ttl time.Duration, k string, ver int, new func() (T, error)) (T, error) {
-	if ent, err := Get[CacheEntry[T]](db, k); err == nil && ent.CheckTTL(ttl, ver) {
+	ent, entErr := Get[CacheEntry[T]](db, k)
+	if entErr == nil && ent.CheckTTL(ttl, ver) {
 		return ent.V, nil
 	}
 
 	v, err := new()
 	if err != nil {
-		return v, fmt.Errorf("Cache: %w", err)
+		if entErr == nil {
+			return ent.V, fmt.Errorf("CacheTTL: %w", errors.Join(err, ErrStale))
+		}
+		return v, fmt.Errorf("CacheTTL: %w", err)
 	}
 
 	// it's just a cache; it's fine if it fails
@@ -104,12 +109,16 @@ func CacheStat[T any](db *DB, f interface{ Stat() (fs.FileInfo, error) }, k stri
 		mtime = fi.ModTime().UTC()
 	}
 
-	if ent, err := Get[CacheEntry[T]](db, k); err == nil && ent.CheckMtime(mtime, ver) {
+	ent, entErr := Get[CacheEntry[T]](db, k)
+	if entErr == nil && ent.CheckMtime(mtime, ver) {
 		return ent.V, nil
 	}
 
 	v, err := new()
 	if err != nil {
+		if entErr == nil {
+			return ent.V, fmt.Errorf("CacheStat: %w", errors.Join(err, ErrStale))
+		}
 		return v, fmt.Errorf("CacheStat: %w", err)
 	}
 
@@ -120,12 +129,16 @@ func CacheStat[T any](db *DB, f interface{ Stat() (fs.FileInfo, error) }, k stri
 }
 
 func CacheMtime[T any](db *DB, mtime time.Time, k string, ver int, new func() (T, error)) (T, error) {
-	if ent, err := Get[CacheEntry[T]](db, k); err == nil && ent.CheckMtime(mtime, ver) {
+	ent, entErr := Get[CacheEntry[T]](db, k)
+	if entErr == nil && ent.CheckMtime(mtime, ver) {
 		return ent.V, nil
 	}
 
 	v, err := new()
 	if err != nil {
+		if entErr == nil {
+			return ent.V, fmt.Errorf("CacheMtime: %w", errors.Join(err, ErrStale))
+		}
 		return v, fmt.Errorf("CacheMtime: %w", err)
 	}
 

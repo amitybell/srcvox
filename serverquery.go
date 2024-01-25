@@ -16,8 +16,6 @@ import (
 
 const (
 	SourceMasterServerAddr = "hl2master.steampowered.com:27011"
-	serverListCacheMaxAge  = 1 * time.Hour
-	serverInfoCacheMaxAge  = 1 * time.Minute
 )
 
 var (
@@ -243,13 +241,13 @@ func queryServerList(gameID uint64) ([][]*MasterReply, error) {
 	return replies, nil
 }
 
-func serverList(db *DB, gameID uint64) (map[string]Region, error) {
-	maxAge := serverListCacheMaxAge
+func serverList(app *App, gameID uint64) (map[string]Region, error) {
+	maxAge := app.State().ServerListMaxAge.D
 	if Env.Demo {
 		maxAge = -1
 	}
 	key := fmt.Sprintf("/serverList/addr-region/%d", gameID)
-	return CacheTTL(db, maxAge, key, 2, func() (map[string]Region, error) {
+	m, err := CacheTTL(app.DB, maxAge, key, 2, func() (map[string]Region, error) {
 		replies, err := queryServerList(gameID)
 		if err != nil {
 			return nil, fmt.Errorf("serverList: %s", err)
@@ -266,6 +264,10 @@ func serverList(db *DB, gameID uint64) (map[string]Region, error) {
 		}
 		return addrs, nil
 	})
+	if err != nil && !errors.Is(err, ErrStale) {
+		return m, err
+	}
+	return m, nil
 }
 
 type ServerQuery struct {
@@ -496,7 +498,7 @@ func queryServerInfo(region Region, addr string) (*ServerReply, error) {
 }
 
 func serverInfo(app *App, region Region, addr string) (ServerInfo, *ServerReply, error) {
-	maxAge := serverInfoCacheMaxAge
+	maxAge := app.State().ServerInfoMaxAge.D
 	if Env.Demo {
 		maxAge = -1
 	}
@@ -505,7 +507,7 @@ func serverInfo(app *App, region Region, addr string) (ServerInfo, *ServerReply,
 	rep, err := CacheTTL(app.DB, maxAge, key, 2, func() (*ServerReply, error) {
 		return queryServerInfo(region, addr)
 	})
-	if err != nil {
+	if err != nil && (!errors.Is(err, ErrStale) || rep == nil) {
 		return ServerInfo{}, nil, err
 	}
 	ip, _, _ := net.SplitHostPort(addr)

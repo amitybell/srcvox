@@ -111,6 +111,10 @@ export namespace main {
 	    logLevel: string;
 	    // Go type: Dur
 	    rateLimit: any;
+	    // Go type: Dur
+	    serverListMaxAge: any;
+	    // Go type: Dur
+	    serverInfoMaxAge: any;
 	
 	    static createFrom(source: any = {}) {
 	        return new AppState(source);
@@ -132,6 +136,8 @@ export namespace main {
 	        this.firstVoice = source["firstVoice"];
 	        this.logLevel = source["logLevel"];
 	        this.rateLimit = this.convertValues(source["rateLimit"], null);
+	        this.serverListMaxAge = this.convertValues(source["serverListMaxAge"], null);
+	        this.serverInfoMaxAge = this.convertValues(source["serverInfoMaxAge"], null);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -168,6 +174,10 @@ export namespace main {
 	    logLevel: string;
 	    // Go type: Dur
 	    rateLimit: any;
+	    // Go type: Dur
+	    serverListMaxAge: any;
+	    // Go type: Dur
+	    serverInfoMaxAge: any;
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -186,6 +196,8 @@ export namespace main {
 	        this.firstVoice = source["firstVoice"];
 	        this.logLevel = source["logLevel"];
 	        this.rateLimit = this.convertValues(source["rateLimit"], null);
+	        this.serverListMaxAge = this.convertValues(source["serverListMaxAge"], null);
+	        this.serverInfoMaxAge = this.convertValues(source["serverInfoMaxAge"], null);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
