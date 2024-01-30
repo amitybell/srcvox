@@ -2,6 +2,14 @@ package main
 
 import (
 	"flag"
+
+	"github.com/amitybell/srcvox/config"
+	"github.com/amitybell/srcvox/logs"
+)
+
+var (
+	paths = config.DefaultPaths
+	Logs  = logs.AppLogger()
 )
 
 func main() {

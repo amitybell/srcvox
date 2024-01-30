@@ -1,30 +1,27 @@
 import {
   QueryFunction,
   UndefinedInitialDataOptions,
-  useInfiniteQuery,
   useQueries,
   useQuery,
   UseQueryResult,
 } from '@tanstack/react-query'
+import deepEqual from 'deep-equal'
 import { ReactElement, useEffect, useId, useMemo, useRef, useState } from 'react'
-import Err from '../Error'
+import { app, useAppEvent } from '../api'
 import {
   AppError,
   AppState,
-  GameInfo,
-  InGame,
-  SoundInfo,
-  Presence,
   coerce,
-  Environment,
-  ServerInfo,
-  Region,
-  Profile,
   Config,
+  GameInfo,
+  Presence,
+  Profile,
+  Region,
+  ServerInfo,
+  SoundInfo,
 } from '../appstate'
-import { app, useAppEvent } from '../api'
+import Err from '../Error'
 import Spinner from '../Spinner'
-import deepEqual from 'deep-equal'
 
 export type QResult<T> =
   | {
@@ -59,8 +56,8 @@ function qResult<T>({ isLoading, refetch, error, data }: UseQueryResult<T, Error
   if (error) {
     return { type: 'error', error, alt: <Err noLogo>{error.message}</Err>, refetch }
   }
-  if (!data) {
-    throw new Error(`data is ${data}`)
+  if (typeof data === 'undefined') {
+    throw new Error(`data is undefined`)
   }
   return { type: 'ok', v: data, refetch }
 }
@@ -127,17 +124,6 @@ export function useFetchDataURI(
   )
 }
 
-export function useInGame(p: { gameID: number; refresh: number }): QResult<InGame> {
-  return useData(
-    'app.InGame',
-    () => app.InGame(p.gameID),
-    (p) => new InGame(p),
-    {
-      refetchInterval: p.refresh > 0 ? p.refresh : false,
-    },
-  )
-}
-
 export function useSynthesize(text: string): QResult<string> {
   return useFetchDataURI(`app.Synthesize(${text})`, '/app.synthesize', { text })
 }
@@ -170,6 +156,14 @@ export function useGames(): QResult<GameInfo[]> {
   return useData('app.Games', app.Games, (p) => coerce([], p).map((q) => new GameInfo(q)))
 }
 
+export function useLaunchOptions(userID: number, gameID: number): QResult<string> {
+  return useData(
+    'app.LaunchOptions',
+    () => app.LaunchOptions(userID, gameID),
+    (p) => coerce('', p),
+  )
+}
+
 export function useSounds(): QResult<SoundInfo[]> {
   return useData('app.Sounds', app.Sounds, (p) => coerce([], p).map((q) => new SoundInfo(q)))
 }
@@ -179,7 +173,11 @@ export function useAppState(): QResult<AppState> {
 }
 
 export function useConfig(): QResult<Config> {
-  return useData('app.Config', app.Config, (p) => new Config(p))
+  const cfg = useData('app.Config', app.Config, (p) => new Config(p))
+  useAppEvent('sv.ConfigChange', () => {
+    cfg.refetch()
+  })
+  return cfg
 }
 
 export function useAppError(): QResult<AppError> {
@@ -196,10 +194,6 @@ export function usePresence(): QResult<Presence> {
   return pr
 }
 
-export function useEnv(): QResult<Environment> {
-  return useData('app.Env', app.Env, (p) => new Environment(p))
-}
-
 export function useServerInfos(
   addrs: Record<string, Region>,
   refresh: number,
@@ -209,7 +203,7 @@ export function useServerInfos(
     queries: Object.entries(addrs).map(([addr, reg]) => ({
       queryKey: ['useServerInfos', addr],
       queryFn: () => app.ServerInfo(reg, addr),
-      select: (p: unknown) => new ServerInfo(p),
+      select: (p: Partial<ServerInfo>) => new ServerInfo(p),
       refetchInterval: refresh > 0 ? refresh : undefined,
     })),
   })
@@ -250,10 +244,10 @@ export function useProfiles(
   less: (a: Profile, b: Profile) => boolean,
 ): Profile[] {
   const res = useQueries({
-    queries: players.map(({ id, name }) => ({
-      queryKey: ['useProfiles', id],
-      queryFn: () => app.Profile(id, name),
-      select: (p: unknown) => new Profile(p),
+    queries: players.map(({ userID, name }) => ({
+      queryKey: ['useProfiles', userID],
+      queryFn: () => app.Profile(userID, name),
+      select: (p: Partial<Profile>) => new Profile(p),
     })),
   })
   return res
@@ -268,5 +262,5 @@ export function useProfiles(
 export function useHumanPlayerProfiles(server: string = ''): Profile[] {
   const pr = usePresence()
   const humanIDs = pr.type === 'ok' && (!server || pr.v.server === server) ? pr.v.humans : []
-  return useProfiles(humanIDs, (a, b) => a.id < b.id).filter(({ avatarURI }) => !!avatarURI)
+  return useProfiles(humanIDs, (a, b) => a.userID < b.userID).filter(({ avatarURI }) => !!avatarURI)
 }

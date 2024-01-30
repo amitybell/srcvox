@@ -1,33 +1,29 @@
-import { main } from '../wailsjs/go/models'
+import { appstate, config, sound, steam } from '../wailsjs/go/models'
 
 export type Region = number
 
 type Dur = string
 
-export class Profile implements main.Profile {
-  id: number
+export class Profile implements steam.Profile {
+  userID: number
   username: string
   clan: string
   name: string
   avatarURI: string
   avatarAlt: string
 
-  constructor(source?: unknown) {
+  constructor(source?: Partial<steam.Profile>) {
     const p = sourceObject(source)
-    this.id = coerce(0, p.id)
+    this.userID = coerce(0, p.userID)
     this.username = coerce('', p.username)
     this.clan = coerce('', p.clan)
     this.name = coerce('', p.name)
     this.avatarURI = coerce('', p.avatarURI)
     this.avatarAlt = /(\w)/.exec(this.name)?.[1] ?? '?'
   }
-
-  static from(source?: unknown): Profile {
-    return new Profile(source)
-  }
 }
 
-export class ServerInfo implements Omit<main.ServerInfo, 'convertValues'> {
+export class ServerInfo implements Omit<steam.ServerInfo, 'convertValues'> {
   addr: string
   name: string
   players: number
@@ -43,7 +39,7 @@ export class ServerInfo implements Omit<main.ServerInfo, 'convertValues'> {
 
   sortName: string
 
-  constructor(source?: unknown) {
+  constructor(source?: Partial<steam.ServerInfo>) {
     const p = sourceObject(source)
     this.addr = coerce('', p.addr)
     this.name = coerce('', p.name)
@@ -79,39 +75,11 @@ export class ServerInfo implements Omit<main.ServerInfo, 'convertValues'> {
   }
 }
 
-export class Environment implements main.Environment {
-  minimized: boolean
-  demo: boolean
-  initTab: string
-  initSbText: string
-  tnetPort: number
-
-  constructor(source?: unknown) {
-    const p = sourceObject(source)
-    this.minimized = coerce(false, p.minimized)
-    this.demo = coerce(false, p.demo)
-    this.initTab = coerce('', p.initTab)
-    this.initSbText = coerce('', p.initSbText)
-    this.tnetPort = coerce(0, p.tnetPort)
-  }
-}
-
-export class InGame implements main.InGame {
-  error: string
-  count: number
-
-  constructor(source?: unknown) {
-    const p = sourceObject(source)
-    this.error = coerce('', p.error)
-    this.count = coerce(0, p.count)
-  }
-}
-
-export class AppError implements main.AppError {
+export class AppError implements appstate.AppError {
   fatal: boolean
   message: string
 
-  constructor(source?: unknown) {
+  constructor(source?: Partial<appstate.AppError>) {
     if (typeof source === 'string' || source instanceof Error) {
       this.fatal = false
       this.message = `${source}`
@@ -134,7 +102,7 @@ export class AppError implements main.AppError {
   }
 }
 
-export class GameInfo implements main.GameInfo {
+export class GameInfo implements steam.GameInfo {
   id: number
   title: string
   dirName: string
@@ -145,7 +113,7 @@ export class GameInfo implements main.GameInfo {
   mapImageURLs: string[]
   mapNames: string[]
 
-  constructor(source?: unknown) {
+  constructor(source?: Partial<steam.GameInfo>) {
     const p = sourceObject(source)
     this.id = coerce(0, p.id)
     this.title = coerce('', p.title)
@@ -159,11 +127,11 @@ export class GameInfo implements main.GameInfo {
   }
 }
 
-export class SoundInfo implements main.SoundInfo {
+export class SoundInfo implements sound.SoundInfo {
   name: string
   sortName: string
 
-  constructor(source?: unknown) {
+  constructor(source?: Partial<sound.SoundInfo>) {
     const p = sourceObject(source)
     this.name = coerce('', p.name)
     this.sortName = this.name.toLocaleLowerCase()
@@ -190,7 +158,7 @@ export class SoundInfo implements main.SoundInfo {
   }
 }
 
-export class Presence implements Omit<main.Presence, 'convertValues'> {
+export class Presence implements Omit<appstate.Presence, 'convertValues'> {
   inGame: boolean
   error: string
   userID: number
@@ -207,7 +175,7 @@ export class Presence implements Omit<main.Presence, 'convertValues'> {
   server: string
   ts: Date
 
-  constructor(source?: unknown) {
+  constructor(source?: Partial<appstate.Presence>) {
     const p = sourceObject(source)
     this.inGame = coerce(false, p.inGame)
     this.error = coerce('', p.error)
@@ -227,8 +195,23 @@ export class Presence implements Omit<main.Presence, 'convertValues'> {
   }
 }
 
-export class Config implements Omit<main.Config, 'convertValues'> {
+export class ConnInfo implements Required<Omit<config.ConnInfo, 'convertValues'>> {
+  host: string
+  port: number
+  password: string
+
+  constructor(source?: Partial<config.ConnInfo>) {
+    const p = sourceObject(source)
+    this.host = coerce('', p.host)
+    this.port = coerce(0, p.port)
+    this.password = coerce('', p.password)
+  }
+}
+
+export class Config implements Required<Omit<config.Config, 'convertValues'>> {
   tnetPort: number
+  netcon: ConnInfo
+  rcon: ConnInfo
   audioDelay: Dur
   audioLimit: Dur
   audioLimitTTS: Dur
@@ -241,10 +224,14 @@ export class Config implements Omit<main.Config, 'convertValues'> {
   rateLimit: Dur
   serverListMaxAge: Dur
   serverInfoMaxAge: Dur
+  minimized: boolean
+  demo: boolean
 
-  constructor(source?: Partial<main.Config>) {
+  constructor(source?: Partial<config.Config>) {
     const p = sourceObject(source)
     this.tnetPort = coerce(0, p.tnetPort)
+    this.netcon = new ConnInfo(p.netcon)
+    this.rcon = new ConnInfo(p.rcon)
     this.audioDelay = coerce('', p.audioDelay)
     this.audioLimit = coerce('', p.audioLimit)
     this.audioLimitTTS = coerce('', p.audioLimitTTS)
@@ -257,21 +244,24 @@ export class Config implements Omit<main.Config, 'convertValues'> {
     this.rateLimit = coerce('', p.rateLimit)
     this.serverListMaxAge = coerce('', p.serverListMaxAge)
     this.serverInfoMaxAge = coerce('', p.serverInfoMaxAge)
+    this.minimized = coerce(false, p.minimized)
+    this.demo = coerce(false, p.demo)
   }
 }
 
-export class AppState extends Config implements Omit<main.AppState, 'convertValues' | 'presence'> {
+export class AppState
+  extends Config
+  implements Required<Omit<appstate.AppState, 'convertValues' | 'presence'>>
+{
   lastUpdate: string
-  addr: string
   presence: Presence
   error: AppError
 
-  constructor(source?: Partial<main.AppState>) {
+  constructor(source?: Partial<appstate.AppState>) {
     super(source)
 
     const p = sourceObject(source)
     this.lastUpdate = coerce('', p.lastUpdate)
-    this.addr = coerce('', p.addr)
     this.presence = new Presence(p.presence)
     this.error = new AppError(p.error)
   }
@@ -293,12 +283,12 @@ export function coerce<T extends string | number | object | boolean | Array<unkn
   return v as T
 }
 
-function sourceObject(source: unknown): Record<string, unknown> {
+function sourceObject<T extends object>(source: Partial<T> | undefined): Partial<T> {
   if (source == null) {
     return {}
   }
   if (typeof source === 'object') {
-    return source as Record<string, unknown>
+    return source as T
   }
   if (typeof source === 'string') {
     return sourceObject(JSON.parse(source))

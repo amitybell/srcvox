@@ -1,29 +1,37 @@
-import 'modern-normalize/modern-normalize.css'
 import '@mantine/core/styles.css'
 import '@mantine/notifications/styles.css'
+import 'modern-normalize/modern-normalize.css'
 import './App.css'
 import cls from './Shell.module.css'
 
-import { ComponentType, ReactElement, useState } from 'react'
-import Soundboard from './Soundboard'
-import Error from './Error'
-import Servers from './Servers'
-import { useAppError, useEnv, useGames } from './hooks/query'
 import { ActionIcon, Tooltip, TooltipProps, rem } from '@mantine/core'
-import Presence, { PresenceAvatar } from './Presence'
-import Wallpaper from './Wallpaper'
+import { notifications } from '@mantine/notifications'
 import {
-  TablerIconsProps,
-  IconHome,
-  IconSpeakerphone,
-  IconInfoCircle,
   IconCamera,
+  IconHome,
+  IconInfoCircle,
+  IconSettings,
+  IconSpeakerphone,
+  TablerIconsProps,
 } from '@tabler/icons-react'
-import { GameInfo } from './appstate'
+import { ComponentType, ReactElement, useEffect, useState } from 'react'
 import Credits from './Credits'
+import Error from './Error'
+import Presence, { PresenceAvatar } from './Presence'
+import Servers from './Servers'
+import Settings from './Settings'
 import Snapshots from './Snapshots'
+import Soundboard from './Soundboard'
+import Wallpaper from './Wallpaper'
+import { GameInfo } from './appstate'
+import { useAppError, useGames } from './hooks/query'
 
-type PageName = { name: 'home' } | { name: 'snap' } | { name: 'soundboard' } | { name: 'credits' }
+type PageName =
+  | { name: 'home' }
+  | { name: 'snap' }
+  | { name: 'soundboard' }
+  | { name: 'credits' }
+  | { name: 'settings' }
 
 type Page = PageName & {
   title: string
@@ -35,6 +43,7 @@ const pages: Page[] = [
   { name: 'soundboard', title: 'Soundboard', Icon: IconSpeakerphone },
   { name: 'snap', title: 'Snapshots', Icon: IconCamera },
   { name: 'credits', title: 'Credits', Icon: IconInfoCircle },
+  { name: 'settings', title: 'Settings', Icon: IconSettings },
 ]
 
 function Head() {
@@ -75,7 +84,7 @@ function Side({ pages, active, goto }: SideProps) {
         </ActionIcon>
       ))}
 
-      <PresenceAvatar className={cls.presenceAvatar} tooltip={tprops} />
+      <PresenceAvatar className={cls.presenceAvatar} popover={{}} />
     </nav>
   )
 }
@@ -89,21 +98,24 @@ interface ContentProps {
 
 function Content({ page, games, activeGameIdx, setActiveGameIdx }: ContentProps) {
   const err = useAppError()
-  const env = useEnv()
+
+  useEffect(() => {
+    if (err.type === 'ok' && !err.v.fatal && err.v.message) {
+      notifications.show({
+        id: 'sv.appErr',
+        autoClose: false,
+        color: 'red',
+        message: err.v.message,
+      })
+    }
+  })
 
   if (err.type !== 'ok') {
     return err.alt
   }
-  if (env.type !== 'ok') {
-    return env.alt
-  }
 
-  if (err.v.message) {
-    return (
-      <Error fatal={err.v.fatal}>
-        {typeof err.v.message}: {err.v.message}
-      </Error>
-    )
+  if (err.v.message && err.v.fatal) {
+    return <Error fatal={err.v.fatal}>{err.v.message}</Error>
   }
 
   return ((): ReactElement => {
@@ -124,6 +136,8 @@ function Content({ page, games, activeGameIdx, setActiveGameIdx }: ContentProps)
         return <Credits />
       case 'snap':
         return <Snapshots game={games[activeGameIdx]} />
+      case 'settings':
+        return <Settings game={games[activeGameIdx]} />
     }
   })()
 }
@@ -131,7 +145,9 @@ function Content({ page, games, activeGameIdx, setActiveGameIdx }: ContentProps)
 function Body(p: ContentProps) {
   return (
     <main className={cls.body}>
-      <Content {...p} />
+      <div className={cls.content}>
+        <Content {...p} />
+      </div>
       <Foot />
     </main>
   )

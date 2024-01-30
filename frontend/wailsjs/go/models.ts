@@ -1,21 +1,5 @@
-export namespace main {
+export namespace appstate {
 	
-	export class APILog {
-	    level: string;
-	    message: string;
-	    trace: string[];
-	
-	    static createFrom(source: any = {}) {
-	        return new APILog(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.level = source["level"];
-	        this.message = source["message"];
-	        this.trace = source["trace"];
-	    }
-	}
 	export class AppError {
 	    fatal: boolean;
 	    message: string;
@@ -42,9 +26,9 @@ export namespace main {
 	    gameIconURI: string;
 	    gameHeroURI: string;
 	    gameDir: string;
-	    // Go type: SliceSet[main
+	    // Go type: data
 	    humans: any;
-	    // Go type: SliceSet[main
+	    // Go type: data
 	    bots: any;
 	    server: string;
 	    // Go type: time
@@ -96,12 +80,13 @@ export namespace main {
 	    lastUpdate: any;
 	    presence: Presence;
 	    error: AppError;
-	    tnetPort: number;
-	    // Go type: Dur
+	    netcon: config.ConnInfo;
+	    rcon: config.ConnInfo;
+	    // Go type: config
 	    audioDelay: any;
-	    // Go type: Dur
+	    // Go type: config
 	    audioLimit: any;
-	    // Go type: Dur
+	    // Go type: config
 	    audioLimitTTS: any;
 	    textLimit: number;
 	    includeUsernames: {[key: string]: boolean};
@@ -109,12 +94,15 @@ export namespace main {
 	    hosts: {[key: string]: boolean};
 	    firstVoice: string;
 	    logLevel: string;
-	    // Go type: Dur
+	    // Go type: config
 	    rateLimit: any;
-	    // Go type: Dur
+	    // Go type: config
 	    serverListMaxAge: any;
-	    // Go type: Dur
+	    // Go type: config
 	    serverInfoMaxAge: any;
+	    minimized?: boolean;
+	    demo?: boolean;
+	    tnetPort: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new AppState(source);
@@ -125,7 +113,8 @@ export namespace main {
 	        this.lastUpdate = this.convertValues(source["lastUpdate"], null);
 	        this.presence = this.convertValues(source["presence"], Presence);
 	        this.error = this.convertValues(source["error"], AppError);
-	        this.tnetPort = source["tnetPort"];
+	        this.netcon = this.convertValues(source["netcon"], config.ConnInfo);
+	        this.rcon = this.convertValues(source["rcon"], config.ConnInfo);
 	        this.audioDelay = this.convertValues(source["audioDelay"], null);
 	        this.audioLimit = this.convertValues(source["audioLimit"], null);
 	        this.audioLimitTTS = this.convertValues(source["audioLimitTTS"], null);
@@ -138,6 +127,9 @@ export namespace main {
 	        this.rateLimit = this.convertValues(source["rateLimit"], null);
 	        this.serverListMaxAge = this.convertValues(source["serverListMaxAge"], null);
 	        this.serverInfoMaxAge = this.convertValues(source["serverInfoMaxAge"], null);
+	        this.minimized = source["minimized"];
+	        this.demo = source["demo"];
+	        this.tnetPort = source["tnetPort"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -158,8 +150,30 @@ export namespace main {
 		    return a;
 		}
 	}
+
+}
+
+export namespace config {
+	
+	export class ConnInfo {
+	    host: string;
+	    port: number;
+	    password: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConnInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.host = source["host"];
+	        this.port = source["port"];
+	        this.password = source["password"];
+	    }
+	}
 	export class Config {
-	    tnetPort: number;
+	    netcon: ConnInfo;
+	    rcon: ConnInfo;
 	    // Go type: Dur
 	    audioDelay: any;
 	    // Go type: Dur
@@ -178,6 +192,9 @@ export namespace main {
 	    serverListMaxAge: any;
 	    // Go type: Dur
 	    serverInfoMaxAge: any;
+	    minimized?: boolean;
+	    demo?: boolean;
+	    tnetPort: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -185,7 +202,8 @@ export namespace main {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.tnetPort = source["tnetPort"];
+	        this.netcon = this.convertValues(source["netcon"], ConnInfo);
+	        this.rcon = this.convertValues(source["rcon"], ConnInfo);
 	        this.audioDelay = this.convertValues(source["audioDelay"], null);
 	        this.audioLimit = this.convertValues(source["audioLimit"], null);
 	        this.audioLimitTTS = this.convertValues(source["audioLimitTTS"], null);
@@ -198,6 +216,9 @@ export namespace main {
 	        this.rateLimit = this.convertValues(source["rateLimit"], null);
 	        this.serverListMaxAge = this.convertValues(source["serverListMaxAge"], null);
 	        this.serverInfoMaxAge = this.convertValues(source["serverInfoMaxAge"], null);
+	        this.minimized = source["minimized"];
+	        this.demo = source["demo"];
+	        this.tnetPort = source["tnetPort"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -218,26 +239,49 @@ export namespace main {
 		    return a;
 		}
 	}
-	export class Environment {
-	    minimized: boolean;
-	    demo: boolean;
-	    initTab: string;
-	    initSbText: string;
-	    tnetPort: number;
+
+}
+
+export namespace logs {
+	
+	export class APILog {
+	    level: string;
+	    message: string;
+	    trace: string[];
 	
 	    static createFrom(source: any = {}) {
-	        return new Environment(source);
+	        return new APILog(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.minimized = source["minimized"];
-	        this.demo = source["demo"];
-	        this.initTab = source["initTab"];
-	        this.initSbText = source["initSbText"];
-	        this.tnetPort = source["tnetPort"];
+	        this.level = source["level"];
+	        this.message = source["message"];
+	        this.trace = source["trace"];
 	    }
 	}
+
+}
+
+export namespace sound {
+	
+	export class SoundInfo {
+	    name: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SoundInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	    }
+	}
+
+}
+
+export namespace steam {
+	
 	export class GameInfo {
 	    id: number;
 	    title: string;
@@ -266,23 +310,8 @@ export namespace main {
 	        this.mapImageURLs = source["mapImageURLs"];
 	    }
 	}
-	export class InGame {
-	    error: string;
-	    count: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new InGame(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.error = source["error"];
-	        this.count = source["count"];
-	    }
-	}
-	
 	export class Profile {
-	    id: number;
+	    userID: number;
 	    avatarURI: string;
 	    username: string;
 	    clan: string;
@@ -294,7 +323,7 @@ export namespace main {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
+	        this.userID = source["userID"];
 	        this.avatarURI = source["avatarURI"];
 	        this.username = source["username"];
 	        this.clan = source["clan"];
@@ -353,18 +382,6 @@ export namespace main {
 		    }
 		    return a;
 		}
-	}
-	export class SoundInfo {
-	    name: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new SoundInfo(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	    }
 	}
 
 }

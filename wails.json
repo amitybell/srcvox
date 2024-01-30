@@ -9,7 +9,7 @@
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "auto",
   "wailsjsdir": "frontend",
-  "version": "2",
+  "version": "0",
   "build:dir": "build",
   "outputfilename": "srcvox",
   "OutputType": "",
@@ -22,10 +22,10 @@
     "email": ""
   },
   "Info": {
-    "companyName": "Amity Bell",
+    "companyName": "Amity Bell Interactive",
     "productName": "SrcVox",
-    "productVersion": "0.0.0",
-    "copyright": "©2023 Amity Bell",
+    "productVersion": "24.01.30-1",
+    "copyright": "©2023 Amity Bell Interactive",
     "comments": "Companion app for Valve Source Engine based games."
   },
   "debounceMS": 100,

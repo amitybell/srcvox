@@ -1,7 +1,7 @@
-export * as app from '../wailsjs/go/main/API'
-export { main } from '../wailsjs/go/models'
-import { useEffect } from 'react'
-import { EventsOn, BrowserOpenURL } from '../wailsjs/runtime'
+import React, { useEffect } from 'react'
+import * as ap from '../wailsjs/go/main/API'
+import { config } from '../wailsjs/go/models'
+import { BrowserOpenURL, EventsOn } from '../wailsjs/runtime'
 
 export type DataURI = string
 
@@ -68,6 +68,19 @@ export function useAppEvent(name: string, hdl: () => void) {
   }, [name, hdl])
 }
 
-export function openURL(url: string) {
+export function openBrowser(url: string, evt?: React.MouseEvent<unknown>) {
+  if (evt) {
+    evt.preventDefault()
+  }
   BrowserOpenURL(url)
+  return false
+}
+
+export function UpdateConfig(cfg: Partial<config.Config>): Promise<void> {
+  return ap.UpdateConfig(cfg as config.Config)
+}
+
+export const app = {
+  ...ap,
+  UpdateConfig,
 }

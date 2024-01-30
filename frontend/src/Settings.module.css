@@ -1,0 +1,23 @@
+.root {
+}
+
+.fieldSet {
+  & legend {
+    font-size: var(--mantine-font-size-xl);
+    font-weight: bold;
+    text-transform: uppercase;
+  }
+}
+
+.instructionList {
+  & li {
+    padding: 1rem 0;
+    white-space: normal;
+    & img {
+      display: block;
+      margin-top: 1rem;
+      height: auto;
+      max-width: 90%;
+    }
+  }
+}

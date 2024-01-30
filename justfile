@@ -1,8 +1,12 @@
 default:
 	@just --list
 
-_build target:
-	wails build -trimpath -platform {{target}}/amd64
+_build platform exe:
+	wails build -trimpath -platform {{platform}}/amd64 -o {{platform}}/{{exe}}
 
-build: (_build "linux") (_build "windows")
+build-linux: (_build "linux" "srcvox")
+
+build-windows: (_build "windows" "srcvox.exe")
+
+build: build-linux build-windows
 

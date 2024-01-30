@@ -1,13 +1,13 @@
-import 'modern-normalize/modern-normalize.css'
 import '@mantine/core/styles.css'
 import '@mantine/notifications/styles.css'
+import 'modern-normalize/modern-normalize.css'
 import './App.css'
 
 import { MantineProvider } from '@mantine/core'
-import { Notifications } from '@mantine/notifications'
 import { ModalsProvider } from '@mantine/modals'
-import { theme } from './theme'
+import { Notifications } from '@mantine/notifications'
 import Shell from './Shell'
+import { theme } from './theme'
 
 export default function App() {
   return (

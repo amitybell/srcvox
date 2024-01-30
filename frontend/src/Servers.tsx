@@ -1,16 +1,16 @@
-import './Servers.css'
 import { ReactElement, ReactNode, useEffect, useState } from 'react'
-import Menu from './Menu'
-import { GameInfo, Presence, ServerInfo } from './appstate'
-import { useEnv, usePresence, useServerInfos, useServers } from './hooks/query'
-import { openURL } from './api'
 import {
-  PiLockKeyOpenFill as PrivateServerIcon,
   PiArrowFatLinesRightFill as ConnectIcon,
-  PiArrowFatRight as RightArrow,
   PiArrowFatDown as DownArrow,
+  PiLockKeyOpenFill as PrivateServerIcon,
+  PiArrowFatRight as RightArrow,
 } from 'react-icons/pi'
 import Flag from 'react-world-flags'
+import Menu from './Menu'
+import './Servers.css'
+import { openBrowser } from './api'
+import { GameInfo, Presence, ServerInfo } from './appstate'
+import { usePresence, useServerInfos, useServers } from './hooks/query'
 
 interface GameProps {
   p: GameInfo
@@ -69,7 +69,7 @@ function ServerListInfo({ p, game, presence }: ServerListInfoProps) {
         href={`steam://connect/${p.addr}`}
         target="_blank"
         rel="noreferrer"
-        onClick={() => openURL(`steam://connect/${p.addr}`)}
+        onClick={(e) => openBrowser(`steam://connect/${p.addr}`, e)}
       >
         {p.addr}
       </a>,
@@ -107,7 +107,7 @@ function ServerListInfo({ p, game, presence }: ServerListInfoProps) {
         <td>
           <button
             className="servers-info-join"
-            onClick={() => openURL(`steam://connect/${p.addr}`)}
+            onClick={(e) => openBrowser(`steam://connect/${p.addr}`, e)}
           >
             <span>JOIN</span>
             <ConnectIcon />
@@ -154,27 +154,14 @@ export interface ServerListProps {
 }
 
 function ServerList({ gameID, gameIdx, games, onGameSelect }: ServerListProps) {
-  const [refresh, setRefresh] = useState(60000)
+  const refresh = 30_000
   const [order, _serOrder] = useState<OrderBy>('players')
   const addrs = useServers(gameID, refresh)
   const pr = usePresence()
   const servers = useServerInfos(addrs.type === 'ok' ? addrs.v : {}, refresh / 2, orderBy(order))
-  const env = useEnv()
-  useEffect(() => {
-    if (env.type !== 'ok' || !env.v.demo) {
-      return
-    }
-    const n = 10000
-    if (refresh !== n) {
-      setRefresh(n)
-    }
-  }, [refresh, env])
 
   if (addrs.type !== 'ok') {
     return addrs.alt
-  }
-  if (env.type !== 'ok') {
-    return env.alt
   }
   if (pr.type !== 'ok') {
     return pr.alt
@@ -182,7 +169,6 @@ function ServerList({ gameID, gameIdx, games, onGameSelect }: ServerListProps) {
 
   const game = games[gameIdx]
   const playerCount = servers.reduce((n, p) => n + p.players, 0)
-  const serverList = env.v.demo ? servers.filter((p) => !p.restricted) : servers
 
   return (
     <table className="servers-ctr">
@@ -194,7 +180,7 @@ function ServerList({ gameID, gameIdx, games, onGameSelect }: ServerListProps) {
                 games={games}
                 activeIdx={gameIdx}
                 onSelect={onGameSelect}
-                title={<span>Servers ({serverList.length})</span>}
+                title={<span>Servers ({servers.length})</span>}
               />
             </div>
           </th>
@@ -210,7 +196,7 @@ function ServerList({ gameID, gameIdx, games, onGameSelect }: ServerListProps) {
         </tr>
       </thead>
       <tbody>
-        {serverList.map((p) => (
+        {servers.map((p) => (
           <ServerListInfo key={p.addr} game={game} p={p} presence={pr.v} />
         ))}
       </tbody>

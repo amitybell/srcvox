@@ -1,16 +1,16 @@
-import cls from './Badges.module.css'
-import { useRef, useState } from 'react'
-import { GameInfo, Presence, ServerInfo } from './appstate'
-import { useMapImage } from './hooks/query'
-import Flag from 'react-world-flags'
-import Avatar from './Avatar'
-import { domToBlob } from 'modern-screenshot'
-import { notifications } from '@mantine/notifications'
 import { Loader } from '@mantine/core'
+import { notifications } from '@mantine/notifications'
+import { domToBlob } from 'modern-screenshot'
+import { useRef, useState } from 'react'
 import {
   PiLockKeyOpenFill as PrivateServerIcon,
   PiCameraDuotone as ScreenshotIcon,
 } from 'react-icons/pi'
+import Flag from 'react-world-flags'
+import Avatar from './Avatar'
+import cls from './Badges.module.css'
+import { GameInfo, Presence, ServerInfo } from './appstate'
+import { useMapImage } from './hooks/query'
 
 export async function screenshot<E extends HTMLElement>({
   elem,
@@ -101,7 +101,7 @@ export function Badge({ srv, game, pr }: BadgeProps) {
         {humans.length ? (
           <div className={cls.body}>
             {humans.map((p, i) => (
-              <Avatar {...p} key={p.id || i} className={cls.avatar} embedded />
+              <Avatar {...p} key={p.userID || i} className={cls.avatar} embedded />
             ))}
           </div>
         ) : null}

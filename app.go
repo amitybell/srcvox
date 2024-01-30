@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -20,7 +19,19 @@ import (
 	asset "github.com/amitybell/piper-asset"
 	alan "github.com/amitybell/piper-voice-alan"
 	jenny "github.com/amitybell/piper-voice-jenny"
+	"github.com/amitybell/srcvox/appstate"
+	"github.com/amitybell/srcvox/config"
+	"github.com/amitybell/srcvox/data"
+	"github.com/amitybell/srcvox/demo"
+	"github.com/amitybell/srcvox/errs"
 	"github.com/amitybell/srcvox/files"
+	"github.com/amitybell/srcvox/logs"
+	"github.com/amitybell/srcvox/sound"
+	"github.com/amitybell/srcvox/steam"
+	"github.com/amitybell/srcvox/store"
+	"github.com/amitybell/srcvox/translate"
+	"github.com/amitybell/srcvox/voicemod"
+	"github.com/amitybell/srcvox/watch"
 	"github.com/wailsapp/wails/v2/pkg/application"
 	"github.com/wailsapp/wails/v2/pkg/logger"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -47,29 +58,10 @@ type winConf struct {
 	}
 }
 
-type AppError struct {
-	Fatal   bool   `json:"fatal"`
-	Message string `json:"message"`
-}
-
-func (e *AppError) Error() string {
-	return e.Message
-}
-
-func AppErr(pfx string, err error) *AppError {
-	if err != nil {
-		if pfx != "" {
-			return &AppError{Message: fmt.Sprintf("%s: %s", pfx, err)}
-		}
-		return &AppError{Message: err.Error()}
-	}
-	return nil
-}
-
 type App struct {
 	API   *API
-	DB    *DB
-	Paths *Paths
+	DB    *store.DB
+	Paths *config.Paths
 
 	initErr []error
 
@@ -83,8 +75,8 @@ type App struct {
 	serveMux http.ServeMux
 
 	state struct {
-		p atomic.Pointer[AppState]
-		q chan Reducer
+		p atomic.Pointer[appstate.AppState]
+		q chan appstate.Reducer
 	}
 
 	tmr struct {
@@ -102,7 +94,7 @@ func newStoppedTimer() *time.Timer {
 	return t
 }
 
-func NewApp(paths *Paths) *App {
+func NewApp(paths *config.Paths) *App {
 	app := &App{
 		Paths:    paths,
 		ttsm:     map[string]*piper.TTS{},
@@ -111,8 +103,8 @@ func NewApp(paths *Paths) *App {
 	app.tmr.reloadConfig = newStoppedTimer()
 	app.API = &API{app: app}
 
-	app.state.p.Store(&AppState{})
-	app.state.q = make(chan Reducer, 1<<10)
+	app.state.p.Store(&appstate.AppState{})
+	app.state.q = make(chan appstate.Reducer, 1<<10)
 	go app.reduceLoop()
 
 	var err error
@@ -122,7 +114,7 @@ func NewApp(paths *Paths) *App {
 	}
 
 	width, height := 0, 0
-	if Env.Demo {
+	if demo.Enabled {
 		mul := 2
 		width = 600 * mul
 		height = 500 * mul
@@ -150,10 +142,10 @@ func NewApp(paths *Paths) *App {
 			switch err := err.(type) {
 			case nil:
 				return nil
-			case *AppError:
+			case *appstate.AppError:
 				return err
 			default:
-				return &AppError{Message: err.Error()}
+				return &appstate.AppError{Message: err.Error()}
 			}
 		},
 		AssetServer: &assetserver.Options{
@@ -218,7 +210,7 @@ func (app *App) winConfKey(ctx context.Context) string {
 }
 
 func (app *App) saveWinConf(ctx context.Context) {
-	if Env.Demo {
+	if demo.Enabled {
 		return
 	}
 
@@ -233,12 +225,12 @@ func (app *App) saveWinConf(ctx context.Context) {
 }
 
 func (app *App) initWinConf(ctx context.Context) {
-	if Env.Demo {
-		runtime.WindowSetSize(ctx, DemoWidth, DemoHeight)
+	if demo.Enabled {
+		runtime.WindowSetSize(ctx, demo.Width, demo.Height)
 		return
 	}
 
-	wc, _ := Get[winConf](app.DB, app.winConfKey(ctx))
+	wc, _ := store.Get[winConf](app.DB, app.winConfKey(ctx))
 	wc.W = max(wc.W, 64*16)
 	wc.H = max(wc.H, 32*16)
 
@@ -250,7 +242,7 @@ func (app *App) initWinConf(ctx context.Context) {
 		runtime.WindowSetSize(ctx, wc.W, wc.H)
 	}
 	switch {
-	case Env.Minimized:
+	case app.State().StartMinimized():
 		runtime.WindowMinimise(ctx)
 	case wc.Maximized:
 		runtime.WindowMaximise(ctx)
@@ -270,9 +262,9 @@ func (app *App) Limiter(name string) *rate.Limiter {
 }
 
 func (app *App) initWatch() {
-	Watch(app.Paths.ConfigDir)
+	watch.Path(app.Paths.ConfigDir)
 
-	WatchNotify(func(ev WatchEvent) {
+	watch.Notify(func(ev watch.Event) {
 		switch {
 		case ev.Name == app.Paths.ConfigFn:
 			app.tmr.reloadConfig.Reset(2 * time.Second)
@@ -284,18 +276,18 @@ func (app *App) initWatch() {
 
 func (app *App) initDB() error {
 	var err error
-	app.DB, err = OpenDB(app.Paths.DBDir)
+	app.DB, err = store.OpenDB(app.Paths.DBDir, store.Options{Logger: Logs.Pebble(false)})
 	return err
 }
 
 func (app *App) reloadConfig() {
 	for range app.tmr.reloadConfig.C {
-		cfg, err := readConfig(app.Paths.ConfigFn)
+		cfg, err := config.Read(app.Paths.ConfigFn)
 		if err != nil {
 			Logs.Println("reloadConfig:", err)
 			continue
 		}
-		app.API.app.UpdateState(func(s AppState) AppState {
+		app.API.app.UpdateState(func(s appstate.AppState) appstate.AppState {
 			s.Config = cfg
 			Logs.Println("reloadConfig: ok")
 			return s
@@ -303,14 +295,14 @@ func (app *App) reloadConfig() {
 	}
 }
 
-func (app *App) initConfig() (Config, error) {
+func (app *App) initConfig() (config.Config, error) {
 	go app.reloadConfig()
 
-	cfg, err := readConfig(app.Paths.ConfigFn)
+	cfg, err := config.Read(app.Paths.ConfigFn)
 	if err != nil && !os.IsExist(err) {
 		return cfg, err
 	}
-	app.Update(AppState{Config: cfg})
+	app.Update(appstate.AppState{Config: cfg})
 	return cfg, nil
 }
 
@@ -330,21 +322,21 @@ func (app *App) initPiper(firstVoice string) error {
 }
 
 func (app *App) initPresence() {
-	usr, ok := findSteamUser(app.DB, 0)
+	usr, ok := steam.FindUser(app.DB, 0)
 	if !ok {
 		return
 	}
-	app.UpdateState(func(s AppState) AppState {
+	app.UpdateState(func(s appstate.AppState) appstate.AppState {
 		p := s.Presence
-		p.InGame = Env.Demo
+		p.InGame = demo.Enabled
 		p.UserID = usr.ID
 		p.Username = usr.Name
-		p.AvatarURI = userAvatarURI(app.DB, usr.ID)
-		if Env.Demo {
-			p.Username = DemoUsername
-			p.AvatarURI = DataURI("image/jpeg", files.DemoAvatar)
+		p.AvatarURI = steam.AvatarURI(app.DB, usr.ID)
+		if demo.Enabled {
+			p.Username = demo.Username
+			p.AvatarURI = data.URI("image/jpeg", files.DemoAvatar)
 		}
-		p.Clan, p.Name = ClanName(usr.Name)
+		p.Clan, p.Name = translate.ClanName(usr.Name)
 		p.Ts = time.Now()
 		s.Presence = p
 		return s
@@ -354,6 +346,12 @@ func (app *App) initPresence() {
 
 func (app *App) onStartup(ctx context.Context) {
 	app.ctx = ctx
+
+	cfg, err := app.initConfig()
+	if err != nil {
+		app.FatalError(err)
+		return
+	}
 
 	if err := app.initDB(); err != nil {
 		app.FatalError(err)
@@ -371,12 +369,6 @@ func (app *App) onStartup(ctx context.Context) {
 
 	app.initPresence()
 
-	cfg, err := app.initConfig()
-	if err != nil {
-		app.FatalError(err)
-		return
-	}
-
 	if err := app.initPiper(cfg.FirstVoice); err != nil {
 		app.FatalError(err)
 		return
@@ -385,12 +377,12 @@ func (app *App) onStartup(ctx context.Context) {
 	app.initWatch()
 	app.initServer()
 
-	go tnet(app)
+	go voicemod.Run(app)
 }
 
 func (app *App) Error(fatal bool, err error) {
-	app.UpdateState(func(s AppState) AppState {
-		e := AppError{
+	app.UpdateState(func(s appstate.AppState) appstate.AppState {
+		e := appstate.AppError{
 			Fatal:   fatal || s.Error.Fatal,
 			Message: err.Error(),
 		}
@@ -441,7 +433,7 @@ func (app *App) serveMapImage(w http.ResponseWriter, r *http.Request) {
 	id := qry.Get("id")
 	nm := qry.Get("map")
 
-	g, ok := GamesMapString[id]
+	g, ok := steam.GamesMapString[id]
 	if !ok {
 		http.NotFound(w, r)
 		return
@@ -453,7 +445,7 @@ func (app *App) serveMapImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// we want to display _something_, otherwise the server list entry looks out-of-place
-	mime, s, err := ReadGameImage(g.ID, HeroImage)
+	mime, s, err := steam.ReadGameImage(g.ID, steam.HeroImage)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -463,13 +455,13 @@ func (app *App) serveMapImage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *App) serveAvatar(w http.ResponseWriter, r *http.Request) {
-	if Env.Demo {
+	if demo.Enabled {
 		w.Write(files.DemoAvatar)
 		return
 	}
 
-	id, _ := strconv.ParseUint(r.URL.Query().Get("id"), 10, 64)
-	f, err := openUserAvatar(app.DB, id)
+	id, _ := steam.ParseID(r.URL.Query().Get("id"))
+	f, err := steam.OpenAvatar(app.DB, id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -479,7 +471,7 @@ func (app *App) serveAvatar(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *App) serveBgVideo(w http.ResponseWriter, r *http.Request) {
-	g, ok := GamesMapString[r.URL.Query().Get("id")]
+	g, ok := steam.GamesMapString[r.URL.Query().Get("id")]
 	if !ok {
 		http.NotFound(w, r)
 		return
@@ -496,13 +488,13 @@ func (app *App) serveBgVideo(w http.ResponseWriter, r *http.Request) {
 func (app *App) serveSound(w http.ResponseWriter, r *http.Request) {
 	state := app.State()
 	pr := state.Presence
-	au, err := SoundOrTTS(app.TTS(pr.Username), state, pr.Username, r.URL.Query().Get("text"))
+	au, err := sound.SoundOrTTS(app.TTS(pr.Username), state.Config, pr.Username, r.URL.Query().Get("text"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	f := memio.NewFile(nil)
-	if _, err := au.Encode(state.AudioDelay.D, state.AudioLimit.D, f, DefaultVoiceFormat); err != nil {
+	if _, err := au.Encode(state.AudioDelay.D, state.AudioLimit.D, f, voicemod.DefaultVoiceFormat); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -560,14 +552,18 @@ func (app *App) Emit(name string, data any) {
 	runtime.EventsEmit(app.ctx, name, data)
 }
 
-func (app *App) State() AppState {
+func (app *App) Store() *store.DB {
+	return app.DB
+}
+
+func (app *App) State() appstate.AppState {
 	return *app.state.p.Load()
 }
 
-func (app *App) reduce(reduce Reducer) {
+func (app *App) reduce(reduce appstate.Reducer) {
 	defer func() {
 		var err error
-		recoverPanic(&err)
+		errs.Recover(&err)
 		if err != nil {
 			Logs.Error("App.reduce:", err)
 		}
@@ -589,10 +585,82 @@ func (app *App) reduceLoop() {
 	}
 }
 
-func (app *App) UpdateState(f Reducer) {
+func (app *App) UpdateState(f appstate.Reducer) {
 	app.state.q <- f
 }
 
-func (app *App) Update(props AppState) {
-	app.UpdateState(func(s AppState) AppState { return props })
+func (app *App) Update(props appstate.AppState) {
+	app.UpdateState(func(s appstate.AppState) appstate.AppState { return props })
+}
+
+func (app *App) UpdateConfig(cfg config.Config) error {
+	done := make(chan error)
+	app.UpdateState(func(s appstate.AppState) appstate.AppState {
+		var err error
+		cfg, changed := s.Config.Merge(cfg)
+		if changed {
+			err = config.Write(app.Paths.ConfigFn, cfg)
+		}
+		s.Config = cfg
+		done <- err
+		return s
+	})
+	return <-done
+}
+
+func (app *App) Logs() *logs.Logger {
+	return Logs
+}
+
+func (app *App) VoiceModServerDisconnected() {
+	app.UpdateState(func(s appstate.AppState) appstate.AppState {
+		s.Presence.Humans = s.Presence.Humans.Clear()
+		s.Presence.Bots = s.Presence.Bots.Clear()
+		return s
+	})
+}
+
+func (app *App) VoiceModPresence(ts time.Time, server string, hums, bots data.SliceSet[steam.Profile]) {
+	app.UpdateState(func(s appstate.AppState) appstate.AppState {
+		if s.Presence.Server == server &&
+			s.Presence.Bots.Equal(bots) &&
+			s.Presence.Humans.Equal(hums) {
+			return s
+		}
+		s.Presence.Bots = bots
+		s.Presence.Humans = hums
+		s.Presence.Server = server
+		s.Presence.Ts = ts
+		return s
+	})
+
+}
+
+func (app *App) VoiceModGame(ts time.Time, game *steam.GameInfo, gameDir string) {
+	app.UpdateState(func(s appstate.AppState) appstate.AppState {
+		s.Presence.InGame = true
+		s.Presence.GameID = game.ID
+		s.Presence.GameIconURI = game.IconURI
+		s.Presence.GameHeroURI = game.HeroURI
+		s.Presence.GameDir = gameDir
+		s.Presence.Ts = ts
+		return s
+	})
+}
+
+func (app *App) VoiceModStopped(err error) {
+	app.UpdateState(func(s appstate.AppState) appstate.AppState {
+		switch {
+		case errors.Is(err, voicemod.ErrPassword):
+			s.Presence.Error = "Cannot connect to Game: " + err.Error()
+		default:
+			s.Presence.Error = ""
+		}
+		s.Presence.InGame = demo.Enabled
+		s.Presence.Humans = s.Presence.Humans.Clear()
+		s.Presence.Bots = s.Presence.Bots.Clear()
+		s.Presence.Server = ""
+		return s
+	})
+
 }

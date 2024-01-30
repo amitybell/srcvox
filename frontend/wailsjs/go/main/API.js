@@ -10,10 +10,6 @@ export function Config() {
   return window['go']['main']['API']['Config']();
 }
 
-export function Env() {
-  return window['go']['main']['API']['Env']();
-}
-
 export function Error() {
   return window['go']['main']['API']['Error']();
 }
@@ -22,8 +18,8 @@ export function Games() {
   return window['go']['main']['API']['Games']();
 }
 
-export function InGame(arg1) {
-  return window['go']['main']['API']['InGame'](arg1);
+export function LaunchOptions(arg1, arg2) {
+  return window['go']['main']['API']['LaunchOptions'](arg1, arg2);
 }
 
 export function Log(arg1) {
@@ -52,4 +48,8 @@ export function Sounds() {
 
 export function State() {
   return window['go']['main']['API']['State']();
+}
+
+export function UpdateConfig(arg1) {
+  return window['go']['main']['API']['UpdateConfig'](arg1);
 }

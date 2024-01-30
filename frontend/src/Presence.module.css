@@ -1,0 +1,6 @@
+.root {
+  opacity: 0.5;
+  &.inGame {
+    opacity: 1;
+  }
+}

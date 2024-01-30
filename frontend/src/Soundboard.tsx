@@ -1,11 +1,11 @@
-import './Soundboard.css'
 import { ButtonHTMLAttributes, ReactNode, useState } from 'react'
 import { PiPlayCircle as PlayIcon, PiStopCircleBold as StopIcon } from 'react-icons/pi'
-import { SoundPlayerStatus, useSoundPlayer } from './hooks/useSoundPlayer'
-import { useEnv, useSounds } from './hooks/query'
-import Spinner from './Spinner'
-import { cmpLessPat, cmpLess } from './appstate'
 import Highlight from './Highlight'
+import './Soundboard.css'
+import Spinner from './Spinner'
+import { cmpLess, cmpLessPat } from './appstate'
+import { useSounds } from './hooks/query'
+import { SoundPlayerStatus, useSoundPlayer } from './hooks/useSoundPlayer'
 
 interface PlayButtonProps {
   status: SoundPlayerStatus
@@ -129,17 +129,13 @@ function SoundboardMessageForm({
 export default function Soundboard() {
   const sp = useSoundPlayer()
   const sounds = useSounds()
-  const env = useEnv()
   const [message, setMessage] = useState<string | null>(null)
 
-  if (env.type !== 'ok') {
-    return env.alt
-  }
   if (sounds.type !== 'ok') {
     return sounds.alt
   }
 
-  const msg = message == null ? env.v.initSbText : message
+  const msg = message ?? ''
   const pat = msg.trim().toLowerCase()
   const filter = pat ? new RegExp(`${pat.split('').join('.*')}`, 'i') : null
   let soundsList = filter

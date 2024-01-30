@@ -52,9 +52,17 @@
 
 .body {
   grid-area: body;
-  overflow: auto;
   padding-left: calc(var(--gutter-size) / 2);
   padding-right: var(--gutter-size);
+  display: flex;
+  flex-direction: column;
+}
+
+.content {
+  flex: 1;
+  height: 100%;
+  max-height: 100%;
+  overflow: auto;
 }
 
 .foot {

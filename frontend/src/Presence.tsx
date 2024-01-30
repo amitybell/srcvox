@@ -1,39 +1,45 @@
-import { useState } from 'react'
-import Menu from './Menu'
 import './Presence.css'
-import { usePresence } from './hooks/query'
+import cls from './Presence.module.css'
+
+import { PopoverProps, Tooltip, TooltipProps, rem } from '@mantine/core'
+import { IconFaceIdError as IconError } from '@tabler/icons-react'
+import { useState } from 'react'
 import Avatar from './Avatar'
-import { Profile } from './appstate'
-import { Tooltip, TooltipProps } from '@mantine/core'
+import Menu from './Menu'
+import { Presence as Pr, Profile } from './appstate'
+import { usePresence } from './hooks/query'
 
 export interface PresenceAvatarProps {
   className?: string
   tooltip?: Partial<TooltipProps>
+  popover?: Partial<PopoverProps>
 }
 
-export function PresenceAvatar({ className, tooltip }: PresenceAvatarProps) {
-  const pr = usePresence()
-  const p = new Profile(pr.type === 'ok' ? pr.v : {})
-  const avatar = (
-    <Avatar
-      {...p}
-      avatarURI={(() => {
-        if (pr.type !== 'ok') {
-          return ''
-        }
+export function PresenceAvatar({ className, tooltip, popover }: PresenceAvatarProps) {
+  const presence = usePresence()
+  const pr = presence.type === 'ok' ? presence.v : new Pr({})
+  const { avatarURL, gameIconURI, inGame, humans } = pr
+  const playing = inGame && humans.length !== 0
+  const avatarURI = playing ? gameIconURI || avatarURL : avatarURL || gameIconURI
 
-        const { avatarURL, gameIconURI, inGame, humans } = pr.v
-        const playing = inGame && humans.length !== 0
-        return playing ? gameIconURI || avatarURL : avatarURL || gameIconURI
-      })()}
-    />
+  const avatar = pr.error ? (
+    <IconError color="red" size={rem(32)} />
+  ) : (
+    <Avatar popover={popover} {...new Profile(pr)} avatarURI={avatarURI} />
   )
+  className = `${className || ''} ${cls.root} ${pr.inGame ? cls.inGame : ''} ${pr.error ? 'error' : ''}`
 
   if (!tooltip) {
-    return <span className={className}>avatar</span>
+    return <span className={className}>{avatar}</span>
+  }
+
+  const tprops = {
+    ...tooltip,
+    className,
+    label: pr.error ? `Error: ${pr.error}` : pr.username,
   }
   return (
-    <Tooltip {...tooltip} label={p.username} className={className}>
+    <Tooltip {...tprops}>
       <span>{avatar}</span>
     </Tooltip>
   )
@@ -71,7 +77,7 @@ export default function Presence() {
         .filter(({ username }) => username !== pr.v.username)
         .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()))
         .map((p) => ({
-          key: p.id,
+          key: p.userID,
           onClick: () => {},
           body: (
             <div className="presence-human-profile">
