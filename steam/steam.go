@@ -328,7 +328,7 @@ func FetchProfile(db *store.DB, userID ID, username string) (Profile, error) {
 	}
 
 	ttl := 2 * time.Hour
-	ver := 4
+	ver := 5
 	dest := fmt.Sprintf("https://steamcommunity.com/profiles/%d?xml=1", userID.To64())
 	profile, err := store.CacheTTL(db, ttl, dest, ver, func() (p Profile, _ error) {
 		defer func() {

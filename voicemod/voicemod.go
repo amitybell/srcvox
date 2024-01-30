@@ -47,7 +47,7 @@ var (
 	GamePathPat     = regexp.MustCompile(`(?i)^GAME\s.*"([^"]+[/\\]steamapps[/\\]common)[/\\]+([^/\\"]+)`)
 	FlatpakPat      = regexp.MustCompile(`^\w+:([\\].+)`)
 	ConnectPat      = regexp.MustCompile(`(?i)^\s*(.*)\s*(connected|disconnected|Not connected to server)\s*$`)
-	StatusPat       = regexp.MustCompile(`^#\s+\d+(?:\s+\d+)?\s+"([^"]+)".+(\[STEAM_\d+:\d+:\d+\]|BOT)`)
+	StatusPat       = regexp.MustCompile(`^#\s+\d+(?:\s+\d+)?\s+"([^"]+)".+(STEAM_\d+:\d+:\d+|BOT)`)
 	StatusServerPat = regexp.MustCompile(`^\s*Connected to (\S+:\d+)\s*$`)
 
 	StatusTableBegin = `# userid name uniqueid connected ping loss state rate`

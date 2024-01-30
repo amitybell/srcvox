@@ -50,6 +50,8 @@ github.com/amitybell/ip2country v0.0.0-20240121133651-ea350ea8d977 h1:2zbHf+6ciq
 github.com/amitybell/ip2country v0.0.0-20240121133651-ea350ea8d977/go.mod h1:PrgzkUcqpfoUQB+V37XXVLRlRm7o5O7ey5o8dtlFX+M=
 github.com/amitybell/memio v0.0.0-20231117101439-b2d22ecd10f6 h1:zBidQ9I8SBuT+6pQLFc8G/W1oLwc+dDgYLN0baMUjL8=
 github.com/amitybell/memio v0.0.0-20231117101439-b2d22ecd10f6/go.mod h1:gxsEdcvjGSSpWWW0bnnLOLiMj3wsogOz5VaPD5lxMF4=
+github.com/amitybell/piper v0.0.0-20240130090909-b170e42b1e09 h1:Y+7vHB4bSM9JvzI+7pIoAVXvo887KsCingDidNDTYbw=
+github.com/amitybell/piper v0.0.0-20240130090909-b170e42b1e09/go.mod h1:y0aDZdCM3erPmpX+rDGoF0O2ZdCqZvAxNjYUPrK/O7U=
 github.com/amitybell/piper-asset v0.0.0-20231030194325-d36a29e3b1fd h1:4MLHn2cCVhzhPLlPO6946h1S0yk3o7Ry1831DEa5EcE=
 github.com/amitybell/piper-asset v0.0.0-20231030194325-d36a29e3b1fd/go.mod h1:MiDKnt4NenfcrsVxYAxQW0nu4zjFYQPjGzzLB5MvOz8=
 github.com/amitybell/piper-bin-linux v0.0.0-20231118093037-92b3de178ad8 h1:ZZoEErHc7pMWVXe6sRr3FZud8lU9G3kbF2IhHB2647o=
