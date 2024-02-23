@@ -21,9 +21,6 @@ var (
 
 	AppLogger = sync.OnceValue[*Logger](func() *Logger {
 		lg := NewLogger(config.DefaultPaths.LogsFn, LogLevel(config.TryRead(config.DefaultPaths.ConfigFn).LogLevel))
-		if lg.F != nil {
-			os.Stderr = lg.F
-		}
 		log.SetOutput(lg)
 		return lg
 	})
@@ -143,6 +140,11 @@ func (l *Logger) Println(a ...any) {
 	s := fmt.Sprintln(a...)
 	s = strings.TrimRight(s, "\r\n")
 	l.Record(1, slog.LevelInfo, s)
+}
+
+func (l *Logger) Fatal(msg string, args ...any) {
+	l.Error(msg, args...)
+	os.Exit(1)
 }
 
 func (l *Logger) API(v APILog) {

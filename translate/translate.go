@@ -73,6 +73,7 @@ var (
 		"killyou":         {"daria5"},
 		"shootme":         {"daria6"},
 		"tyvm":            {"daria7"},
+		"happycat":        {"happycat1", "happycat2"},
 	})
 
 	clanNamePat = regexp.MustCompile(`^\s*((?:\*+\s*[^*]+\*+)|(?:\[+\s*[^]]+\]+)|(?:\(+\s*[^)]+\)+))\s*(.+?)\s*$`)

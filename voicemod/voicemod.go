@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -27,7 +27,6 @@ import (
 	"github.com/amitybell/srcvox/steam"
 	"github.com/amitybell/srcvox/store"
 	"github.com/gopxl/beep"
-	"github.com/ziutek/telnet"
 	"golang.org/x/time/rate"
 )
 
@@ -69,13 +68,21 @@ type App interface {
 	VoiceModGame(ts time.Time, game *steam.GameInfo, gameDir string)
 	VoiceModPresence(ts time.Time, server string, hums, bots data.SliceSet[steam.Profile])
 	VoiceModServerDisconnected()
+	VoiceModNetcon() (Conn, error)
+	DedicatedGameDir() string
+}
+
+type Conn interface {
+	io.Reader
+	io.Writer
+	io.Closer
+	ReadString(byte) (string, error)
 }
 
 type X = []string
 
 type voiceMod struct {
-	Logs *logs.Logger
-	Conn *telnet.Conn
+	Conn Conn
 	Q    chan *audio.Audio
 	stop chan struct{}
 
@@ -126,8 +133,11 @@ func (vm *voiceMod) drainQ(def *audio.Audio) *audio.Audio {
 func (vm *voiceMod) playLoop(ctx context.Context) {
 	for {
 		select {
-		case a := <-vm.Q:
-			vm.play(vm.drainQ(a))
+		case au := <-vm.Q:
+			au = vm.drainQ(au)
+			if err := vm.play(au); err != nil {
+				vm.app.Logs().Printf("Cannot play: %s: %v", au.Name, err)
+			}
 		case <-ctx.Done():
 			return
 		}
@@ -136,7 +146,7 @@ func (vm *voiceMod) playLoop(ctx context.Context) {
 
 func (vm *voiceMod) play(au *audio.Audio) (err error) {
 	state := vm.app.State()
-	dir := state.Presence.GameDir
+	dir := vm.gameDir(state)
 	if dir == "" {
 		return fmt.Errorf("voiceMod.play: GameDir is not set")
 	}
@@ -167,7 +177,7 @@ func (vm *voiceMod) play(au *audio.Audio) (err error) {
 
 	select {
 	case <-vm.stop:
-		vm.Logs.Println("voice stopped")
+		vm.app.Logs().Println("voice stopped")
 	default:
 	}
 
@@ -214,7 +224,7 @@ func (vm *voiceMod) readLineGamePath(steamDir, gameNm string) {
 		}
 	}
 	if game == nil {
-		vm.Logs.Printf("readLineGamePath: Unsupported game: %s\n", gameNm)
+		vm.app.Logs().Printf("readLineGamePath: Unsupported game: %s\n", gameNm)
 		return
 	}
 
@@ -226,13 +236,13 @@ func (vm *voiceMod) readLineGamePath(steamDir, gameNm string) {
 		}
 	}
 	if _, err := os.Stat(steamDir); err != nil {
-		vm.Logs.Printf("readLineGamePath: Steam directory `%s` doesn't exist: %s\n", steamDir, err)
+		vm.app.Logs().Printf("readLineGamePath: Steam directory `%s` doesn't exist: %s\n", steamDir, err)
 		return
 	}
 
 	gameDir := filepath.Join(steamDir, game.DirName)
 	if _, err := os.Stat(gameDir); err != nil {
-		vm.Logs.Printf("readLineGamePath: Game directory `%s` doesn't exist: %s\n", gameDir, err)
+		vm.app.Logs().Printf("readLineGamePath: Game directory `%s` doesn't exist: %s\n", gameDir, err)
 		return
 	}
 
@@ -243,7 +253,7 @@ func (vm *voiceMod) execStatus() error {
 	return vm.Exec(X{"status"})
 }
 
-func (vm *voiceMod) readStatusTable(conn *telnet.Conn) {
+func (vm *voiceMod) readStatusTable(conn Conn) {
 	ts := time.Now()
 	addr := ""
 	if p := vm.statusServer.Load(); p != nil {
@@ -338,13 +348,13 @@ func (vm *voiceMod) readLineChat(name, msg string) {
 	state := vm.app.State()
 
 	if r := vm.ignoreChat(state, name); r != "" {
-		vm.Logs.Printf("readLineChat: ignored: `%s: %s`: %s\n", name, msg, r)
+		vm.app.Logs().Printf("readLineChat: ignored: `%s: %s`: %s\n", name, msg, r)
 		return
 	}
 
 	au, err := sound.SoundOrTTS(vm.app.TTS(name), state.Config, name, msg)
 	if err != nil {
-		vm.Logs.Printf("voiceMod.readLine: username=`%s`, message=`%s`: %s\n", name, msg, err)
+		vm.app.Logs().Printf("voiceMod.readLine: username=`%s`, message=`%s`: %s\n", name, msg, err)
 		return
 	}
 
@@ -409,29 +419,46 @@ func (vm *voiceMod) readLine(line string) error {
 	return nil
 }
 
-func (vm *voiceMod) pollHost(ctx context.Context) {
+func (vm *voiceMod) dedicated() bool {
+	return vm.app.DedicatedGameDir() != ""
+}
+
+func (vm *voiceMod) gameDir(state appstate.AppState) string {
+	if d := vm.app.DedicatedGameDir(); d != "" {
+		return d
+	}
+	return state.Presence.GameDir
+}
+
+func (vm *voiceMod) execInit() {
+	if vm.dedicated() {
+		return
+	}
+	if err := vm.Exec(X{"bind", "backspace", `echo ` + StopWord}); err != nil {
+		vm.app.Logs().Println(err)
+	}
+	if err := vm.Exec(X{"path"}); err != nil {
+		vm.app.Logs().Println(err)
+	}
+	if err := vm.execStatus(); err != nil {
+		vm.app.Logs().Println(err)
+	}
+}
+
+func (vm *voiceMod) commandLoop(ctx context.Context) {
+	vm.execInit()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-time.After(10 * time.Second):
-			vm.execStatus()
+			if vm.gameDir(vm.app.State()) == "" {
+				vm.execInit()
+			} else {
+				vm.execStatus()
+			}
 		}
 	}
-}
-
-func (vm *voiceMod) commandLoop(ctx context.Context) {
-	if err := vm.Exec(X{"bind", "backspace", `echo ` + StopWord}); err != nil {
-		vm.Logs.Println(err)
-	}
-	if err := vm.Exec(X{"path"}); err != nil {
-		vm.Logs.Println(err)
-	}
-	if err := vm.execStatus(); err != nil {
-		vm.Logs.Println(err)
-	}
-
-	vm.pollHost(ctx)
 }
 
 func (vm *voiceMod) Loop(ctx context.Context) error {
@@ -468,79 +495,43 @@ func retryForever[T any](ctx context.Context, maxInterval time.Duration, f func(
 	}
 }
 
-func initNetcon(app App) (c *telnet.Conn, err error) {
-	defer func() {
-		if err != nil && c != nil {
-			c.Close()
-		}
-	}()
-
-	nc := app.State().Netcon
-	addr := nc.Addr()
-	c, err = telnet.Dial("tcp", addr)
-
-	if nc.Password != "" && err == nil {
-		_, err = fmt.Fprintf(c, "PASS %s\r\n", nc.Password)
-	}
-
-	status := "connected"
-	if err != nil {
-		status = err.Error()
-	}
-
-	log := app.Logs().Debug
-	if c != nil {
-		log = app.Logs().Info
-	}
-	log("netcon",
-		slog.String("addr", addr),
-		slog.String("status", status),
-		slog.Bool("password", nc.Password != ""),
-	)
-
-	return c, err
-}
-
-func dialTnet(ctx context.Context, app App) (_ *voiceMod, _ context.Context, cancel func(), _ error) {
-	tc, err := retryForever(ctx, 5*time.Second, func() (*telnet.Conn, error) { return initNetcon(app) })
-	if err != nil {
-		return nil, ctx, nil, err
-	}
-
-	ctx, cancel = context.WithCancel(ctx)
-	vm := &voiceMod{
-		Q:    make(chan *audio.Audio, 1<<10),
-		stop: make(chan struct{}, 1),
-		Conn: tc,
-		app:  app,
-	}
-	return vm, ctx, cancel, nil
-}
-
 func runVM(ctx context.Context, app App) (retErr error) {
 	// reset any stale data. it will be re-initialized by readLineGamePath and readLineName
 	defer func() { app.VoiceModStopped(retErr) }()
 
-	vm, ctx, cancel, err := dialTnet(ctx, app)
+	c, err := retryForever(ctx, 5*time.Second, app.VoiceModNetcon)
 	if err != nil {
 		return err
 	}
+
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	return vm.Loop(ctx)
+	vm := &voiceMod{
+		Q:    make(chan *audio.Audio, 1<<10),
+		stop: make(chan struct{}, 1),
+		Conn: c,
+		app:  app,
+	}
+
+	loopErr := vm.Loop(ctx)
+	closeErr := c.Close()
+	return errors.Join(loopErr, closeErr)
 }
 
-func Run(app App) {
-	ctx := context.Background()
+func Run(ctx context.Context, app App) error {
 	for {
+		// if the server is broken (e.g. broken pipe on write), but we can connect immediately
+		// we end up just burning CPU, so always wait a little before restarting
+		delay := 5 * time.Second
 		err := runVM(ctx, app)
-		switch {
-		case errors.Is(err, ErrPassword):
-			time.Sleep(30 * time.Second)
-		default:
-			// if the server is broken (e.g. broken pipe on write), but we can connect immediately
-			// we end up just burning CPU, so always wait a little before restarting
-			time.Sleep(5 * time.Second)
+		if errors.Is(err, ErrPassword) {
+			delay = 30 * time.Second
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(delay):
 		}
 	}
 }

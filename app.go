@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -39,6 +40,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/ziutek/telnet"
 	"golang.org/x/time/rate"
 )
 
@@ -124,12 +126,11 @@ func NewApp(paths *config.Paths) *App {
 		Title:            "SrcVox",
 		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
 		Linux: &linux.Options{
-			WebviewGpuPolicy: linux.WebviewGpuPolicyNever,
+			WebviewGpuPolicy: linux.WebviewGpuPolicyAlways,
 			Icon:             files.EmblemPNG,
 		},
 		Windows: &windows.Options{
-			WebviewUserDataPath:  paths.WebviewDataDir,
-			WebviewGpuIsDisabled: true,
+			WebviewUserDataPath: paths.WebviewDataDir,
 		},
 		Width:         width,
 		Height:        height,
@@ -377,7 +378,11 @@ func (app *App) onStartup(ctx context.Context) {
 	app.initWatch()
 	app.initServer()
 
-	go voicemod.Run(app)
+	go voicemod.Run(ctx, app)
+}
+
+func (app *App) DedicatedGameDir() string {
+	return ""
 }
 
 func (app *App) Error(fatal bool, err error) {
@@ -620,6 +625,39 @@ func (app *App) VoiceModServerDisconnected() {
 	})
 }
 
+func (app *App) VoiceModNetcon() (voicemod.Conn, error) {
+	nc := app.State().Netcon
+	addr := nc.Addr()
+	c, err := telnet.Dial("tcp", addr)
+
+	if nc.Password != "" && err == nil {
+		_, err = fmt.Fprintf(c, "PASS %s\r\n", nc.Password)
+		if err != nil {
+			c.Close()
+		}
+	}
+
+	status := "connected"
+	if err != nil {
+		status = err.Error()
+	}
+
+	log := app.Logs().Debug
+	if c != nil {
+		log = app.Logs().Info
+	}
+	log("netcon",
+		slog.String("addr", addr),
+		slog.String("status", status),
+		slog.Bool("password", nc.Password != ""),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
 func (app *App) VoiceModPresence(ts time.Time, server string, hums, bots data.SliceSet[steam.Profile]) {
 	app.UpdateState(func(s appstate.AppState) appstate.AppState {
 		if s.Presence.Server == server &&
@@ -662,5 +700,4 @@ func (app *App) VoiceModStopped(err error) {
 		s.Presence.Server = ""
 		return s
 	})
-
 }
