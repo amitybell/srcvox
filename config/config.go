@@ -15,7 +15,7 @@ var DefaultConfig = func() Config {
 	json.NewDecoder(strings.NewReader(os.Getenv("cfg"))).Decode(&cfg)
 	def := Config{
 		AudioDelay:    Dur{D: 250 * time.Millisecond},
-		AudioLimit:    Dur{D: 10 * time.Second},
+		AudioLimit:    Dur{D: 3 * time.Second},
 		AudioLimitTTS: Dur{D: 3 * time.Second},
 		TextLimit:     64,
 		Netcon: ConnInfo{
@@ -168,5 +168,5 @@ func Write(fn string, cfg Config) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(fn, s, 0644)
+	return os.WriteFile(fn, s, 0o644)
 }

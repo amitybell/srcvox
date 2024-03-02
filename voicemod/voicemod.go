@@ -156,7 +156,7 @@ func (vm *voiceMod) play(au *audio.Audio) (err error) {
 
 	enableChat := []X{
 		{`-voicerecord`},
-		{`voice_scale`, `0.5`},
+		{`voice_scale`, `0.33`},
 		{`voice_loopback`, `1`},
 		{`voice_inputfromfile`, `1`},
 		{`+voicerecord`},
